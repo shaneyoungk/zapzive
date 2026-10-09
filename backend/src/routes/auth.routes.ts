@@ -2,187 +2,217 @@ import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import { promisify } from 'util';
-import { authMiddleware, AuthRequest } from '../middleware/auth.middleware';
+import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth.middleware';
+import { audit, ApiError, optionalText, requiredText, safeEmail, sendApiError } from '../lib/security';
 
 const router = Router();
-const scryptAsync = promisify(crypto.scrypt);
+function scryptAsync(password: string, salt: string, keyLength: number): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+        crypto.scrypt(password, salt, keyLength, {
+            N: 16_384,
+            r: 8,
+            p: 1,
+            maxmem: 32 * 1024 * 1024,
+        }, (error, derivedKey) => {
+            if (error) return reject(error);
+            resolve(derivedKey as Buffer);
+        });
+    });
+}
 
 async function hashPassword(password: string): Promise<string> {
     const salt = crypto.randomBytes(16).toString('hex');
-    const derivedKey = await scryptAsync(password, salt, 64) as Buffer;
+    const derivedKey = await scryptAsync(password, salt, 64);
     return `scrypt:${salt}:${derivedKey.toString('hex')}`;
 }
 
 async function verifyPassword(password: string, stored: string): Promise<boolean> {
-    if (!stored.startsWith('scrypt:')) return stored === password;
+    if (!stored.startsWith('scrypt:')) return false;
     const [, salt, key] = stored.split(':');
-    const derivedKey = await scryptAsync(password, salt, 64) as Buffer;
+    if (!salt || !key) return false;
+    const derivedKey = await scryptAsync(password, salt, 64);
     const expected = Buffer.from(key, 'hex');
     return expected.length === derivedKey.length && crypto.timingSafeEqual(expected, derivedKey);
 }
 
-function issueToken(userId: string): string {
+function issueToken(user: { id: string; companyId: string; email: string; name: string; role: string; status: string; authVersion?: number }): string {
     const secret = process.env.JWT_SECRET;
     if (!secret || secret.length < 32) throw new Error('JWT_SECRET must be at least 32 characters');
-    return jwt.sign({}, secret, { subject: userId, expiresIn: '8h' });
+    return jwt.sign(
+        {
+            companyId: user.companyId,
+            role: user.role,
+            status: user.status,
+            authVersion: user.authVersion || 0,
+        },
+        secret,
+        {
+            subject: user.id,
+            expiresIn: '8h',
+            issuer: process.env.JWT_ISSUER || 'zapzive-api',
+            audience: process.env.JWT_AUDIENCE || 'zapzive-dashboard',
+        },
+    );
+}
+
+function setSessionCookie(res: Response, token: string) {
+    const secure = process.env.NODE_ENV === 'production';
+    const sameSite = secure ? 'SameSite=None' : 'SameSite=Lax';
+    res.setHeader('Set-Cookie', 'zapzive_session=' + encodeURIComponent(token) + '; Path=/; HttpOnly; ' + sameSite + (secure ? '; Secure' : '') + '; Max-Age=28800');
+}
+
+function clearSessionCookie(res: Response) {
+    res.setHeader('Set-Cookie', 'zapzive_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
 }
 
 // POST /api/auth/signup - Create new user account
 router.post('/signup', async (req: Request, res: Response) => {
     try {
-        const { email, name, password, companyName, country } = req.body;
-
-        // Validation
-        if (!email || !name || !password || !companyName || !country) {
-            return res.status(400).json({
-                error: 'Missing required fields',
-                details: 'Please provide all required information'
-            });
-        }
-
-        if (typeof password !== 'string' || password.length < 8) {
-            return res.status(400).json({ error: 'Password must be at least 8 characters' });
-        }
-
-        if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            return res.status(400).json({ error: 'Please provide a valid email address' });
+        const normalizedEmail = safeEmail(req.body?.email);
+        const normalizedName = requiredText(req.body?.name, 'name', 120);
+        const normalizedCompanyName = requiredText(req.body?.companyName, 'companyName', 160);
+        const normalizedCountry = requiredText(req.body?.country, 'country', 80);
+        const password = req.body?.password;
+        if (typeof password !== 'string' || password.length < 12 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+            throw new ApiError(422, 'WEAK_PASSWORD', 'Password must be at least 12 characters and include letters and numbers.');
         }
 
         // Check if user already exists
         const existingUser = await prisma.user.findUnique({
-            where: { email: email.toLowerCase() }
+            where: { email: normalizedEmail }
         });
 
         if (existingUser) {
-            return res.status(409).json({
-                error: 'Account already exists',
-                details: 'An account with this email already exists. Please login instead.'
-            });
+            throw new ApiError(409, 'ACCOUNT_EXISTS', 'An account with that email already exists. Use the sign-in or recovery flow.');
         }
 
-        // Create company first
-        const company = await prisma.company.create({
-            data: {
-                name: companyName.trim(),
-                email: email.toLowerCase(),
-                country: country.trim(),
-                isTestMode: true,
-                phone: '',
-                address: ''
-            }
-        });
-
-        // Create user
-        const user = await prisma.user.create({
-            data: {
-                email: email.toLowerCase(),
-                name: name.trim(),
-                password: await hashPassword(password),
-                companyId: company.id
-            }
-        });
-
-        // Seed initial data for "Test Mode"
-        await prisma.worker.createMany({
-            data: [
-                {
-                    name: 'Alex Rivera',
-                    role: 'Senior Engineer',
-                    email: `alex.${company.id}@example.com`,
-                    phone: '+1 555-0101',
-                    country: 'United States',
-                    wallet: '0x71C7...f9a1',
-                    kycStatus: 'verified',
-                    totalPaid: 12500,
-                    companyId: company.id
-                },
-                {
-                    name: 'Sarah Chen',
-                    role: 'Product Designer',
-                    email: `sarah.${company.id}@example.com`,
-                    phone: '+1 555-0102',
-                    country: 'Singapore',
-                    wallet: '0x3aB2...eD44',
-                    kycStatus: 'verified',
-                    totalPaid: 8400,
-                    companyId: company.id
+        const passwordHash = await hashPassword(password);
+        const { company, user } = await prisma.$transaction(async (tx) => {
+            const createdCompany = await tx.company.create({
+                data: {
+                    name: normalizedCompanyName,
+                    email: normalizedEmail,
+                    country: normalizedCountry,
+                    isTestMode: true,
+                    phone: '',
+                    address: ''
                 }
-            ]
+            });
+            const createdUser = await tx.user.create({
+                data: {
+                    email: normalizedEmail,
+                    name: normalizedName,
+                    password: passwordHash,
+                    role: 'owner',
+                    status: 'active',
+                    emailVerifiedAt: new Date(),
+                    companyId: createdCompany.id
+                }
+            });
+            // Seed a minimal sandbox workspace in the same transaction as the
+            // account so a partial signup cannot create an unusable company.
+            await tx.worker.createMany({
+                data: [
+                    {
+                        name: 'Alex Rivera',
+                        role: 'Senior Engineer',
+                        email: `alex.${createdCompany.id}@example.com`,
+                        phone: '+1 555-0101',
+                        country: 'United States',
+                        wallet: '0x71C7...f9a1',
+                        kycStatus: 'verified',
+                        totalPaid: 12500,
+                        companyId: createdCompany.id
+                    },
+                    {
+                        name: 'Sarah Chen',
+                        role: 'Product Designer',
+                        email: `sarah.${createdCompany.id}@example.com`,
+                        phone: '+1 555-0102',
+                        country: 'Singapore',
+                        wallet: '0x3aB2...eD44',
+                        kycStatus: 'verified',
+                        totalPaid: 8400,
+                        companyId: createdCompany.id
+                    }
+                ]
+            });
+            await tx.asset.createMany({
+                data: [
+                    // These are simulated balances for the test workspace. They
+                    // intentionally live in the shared Asset ledger so treasury,
+                    // overview, analytics, and the sandbox payment rail agree.
+                    { companyId: createdCompany.id, symbol: 'USDC', name: 'USD Coin', balance: 100000, usdValue: 100000, change24h: 0, chain: 'Zapzive Sandbox', color: '#2775CA', icon: '/icons/usdc.png' },
+                    { companyId: createdCompany.id, symbol: 'USDT', name: 'Tether', balance: 100000, usdValue: 100000, change24h: 0, chain: 'Zapzive Sandbox', color: '#26A17B', icon: '/icons/tether.png' },
+                    { companyId: createdCompany.id, symbol: 'ETH', name: 'Ethereum', balance: 25, usdValue: 62500, change24h: 0, chain: 'Zapzive Sandbox', color: '#627EEA', icon: '/icons/ethereum.png' },
+                    { companyId: createdCompany.id, symbol: 'MATIC', name: 'Polygon', balance: 5000, usdValue: 2500, change24h: 0, chain: 'Zapzive Sandbox', color: '#8247E5', icon: '/icons/polygon.png' },
+                    { companyId: createdCompany.id, symbol: 'DAI', name: 'Dai', balance: 50000, usdValue: 50000, change24h: 0, chain: 'Zapzive Sandbox', color: '#F5AC37', icon: '/icons/dai.svg' },
+                    { companyId: createdCompany.id, symbol: 'BTC', name: 'Bitcoin', balance: 1, usdValue: 60000, change24h: 0, chain: 'Zapzive Sandbox', color: '#F7931A', icon: '/icons/bitcoin.svg' },
+                    { companyId: createdCompany.id, symbol: 'SOL', name: 'Solana', balance: 100, usdValue: 15000, change24h: 0, chain: 'Zapzive Sandbox', color: '#14F195', icon: '/icons/solana.svg' }
+                ]
+            });
+            return { company: createdCompany, user: createdUser };
         });
 
-        await prisma.asset.createMany({
-            data: [
-                { companyId: company.id, symbol: 'USDC', name: 'USD Coin', balance: 0, usdValue: 0, change24h: 0, chain: 'Ethereum', color: '#2775CA', icon: 'usdc' },
-                { companyId: company.id, symbol: 'ETH', name: 'Ethereum', balance: 0, usdValue: 0, change24h: 0, chain: 'Ethereum', color: '#627EEA', icon: 'ethereum' },
-                { companyId: company.id, symbol: 'USDT', name: 'Tether', balance: 0, usdValue: 0, change24h: 0, chain: 'Ethereum', color: '#26A17B', icon: 'tether' }
-            ]
+        const token = issueToken(user);
+        setSessionCookie(res, token);
+        await audit(company.id, 'account.created', 'user', {
+            actorId: user.id,
+            entityId: user.id,
+            requestId: res.locals.requestId,
         });
-
-        // Add some initial transactions (note: Transaction model currently doesn't have companyId, I should add it or relate it)
-        // For now, I'll just create them. In a real app, transactions would be scoped.
-
-        console.log(`✅ New user registered and seeded: ${email} (${companyName})`);
-
         res.status(201).json({
             success: true,
-            message: 'Account created successfully',
+            message: 'Sandbox account created successfully',
             user: {
                 id: user.id,
                 email: user.email,
                 name: user.name,
-                companyId: user.companyId
+                companyId: user.companyId,
+                role: user.role,
             },
             company: {
                 id: company.id,
                 name: company.name,
                 country: company.country,
-                isTestMode: company.isTestMode
+                isTestMode: company.isTestMode,
             },
-            token: issueToken(user.id)
         });
     } catch (error) {
-        console.error('Signup error:', error);
-        res.status(500).json({ error: 'Failed to create account' });
+        return sendApiError(res, error, 'Failed to create account');
     }
 });
 
 // POST /api/auth/login - Login user
 router.post('/login', async (req: Request, res: Response) => {
     try {
-        const { email, password } = req.body;
-
-        // Validation
-        if (!email || !password) {
-            return res.status(400).json({
-                error: 'Missing credentials',
-                details: 'Please provide both email and password'
-            });
+        const normalizedEmail = safeEmail(req.body?.email);
+        const password = req.body?.password;
+        if (typeof password !== 'string' || password.length === 0) {
+            throw new ApiError(422, 'INVALID_CREDENTIALS', 'Email and password are required.');
         }
 
         const user = await prisma.user.findUnique({
-            where: { email: email.toLowerCase() },
+            where: { email: normalizedEmail },
             include: { company: true }
         });
 
         if (!user || !(await verifyPassword(password, user.password))) {
-            return res.status(401).json({
-                error: 'Invalid credentials',
-                details: 'Incorrect email or password'
-            });
+            return res.status(401).json({ error: 'Invalid email or password', code: 'INVALID_CREDENTIALS' });
+        }
+        if (user.status !== 'active' || user.company.status !== 'active') {
+            return res.status(403).json({ error: 'This account is not active', code: 'ACCOUNT_INACTIVE' });
         }
 
         // Update last login
         await prisma.user.update({
             where: { id: user.id },
-            data: {
-                lastLogin: new Date(),
-                ...(user.password.startsWith('scrypt:') ? {} : { password: await hashPassword(password) })
-            }
+            data: { lastLogin: new Date() },
         });
 
-        console.log(`✅ User logged in: ${email}`);
-
+        const token = issueToken(user);
+        setSessionCookie(res, token);
+        await audit(user.companyId, 'auth.login', 'user', { actorId: user.id, requestId: res.locals.requestId });
         res.json({
             success: true,
             message: 'Login successful',
@@ -190,49 +220,89 @@ router.post('/login', async (req: Request, res: Response) => {
                 id: user.id,
                 email: user.email,
                 name: user.name,
-                companyId: user.companyId
+                companyId: user.companyId,
+                role: user.role,
             },
             company: user.company,
-            token: issueToken(user.id)
         });
     } catch (error) {
-        res.status(500).json({ error: 'Login failed' });
+        return sendApiError(res, error, 'Login failed');
+    }
+});
+
+// GET /api/auth/session - Return the current server-validated session.
+router.get('/session', authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+        const user = await prisma.user.findFirst({
+            where: { id: req.user?.id, companyId: req.companyId },
+            include: { company: true },
+        });
+        if (!user) return res.status(401).json({ error: 'Session is no longer valid', code: 'SESSION_INVALID' });
+
+        res.json({
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                companyId: user.companyId,
+                role: user.role,
+                status: user.status,
+            },
+            company: user.company,
+        });
+    } catch (error) {
+        return sendApiError(res, error, 'Failed to validate session');
     }
 });
 
 // POST /api/auth/verify-email - Send verification email
 router.post('/verify-email', async (req: Request, res: Response) => {
     try {
-        const { email } = req.body;
-
-        // In production, send actual email
-        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-        res.json({
-            message: 'Verification code sent',
-            code: verificationCode // Only for demo - remove in production
-        });
+        safeEmail(req.body?.email);
+        // Do not return a verification secret. A production delivery adapter must
+        // enqueue a one-time hashed token with an email provider.
+        res.json({ message: 'If the account exists, a verification message will be sent.' });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to send verification email' });
+        return sendApiError(res, error, 'Failed to send verification email');
     }
 });
 
 // POST /api/auth/complete-onboarding - Complete company setup
-router.post('/complete-onboarding', authMiddleware as any, async (req: AuthRequest, res: Response) => {
+router.post('/complete-onboarding', authMiddleware as any, requireRole('owner', 'admin'), async (req: AuthRequest, res: Response) => {
     try {
-        const { phone, address } = req.body;
+        const phone = optionalText(req.body?.phone, 'phone', 40);
+        const address = optionalText(req.body?.address, 'address', 300);
 
         const company = await prisma.company.update({
             where: { id: req.companyId },
             data: {
                 phone,
-                address
+                address,
             }
         });
 
+        await audit(req.companyId!, 'organization.onboarding_completed', 'company', {
+            actorId: req.user?.id,
+            entityId: req.companyId,
+            requestId: res.locals.requestId,
+        });
         res.json(company);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to complete onboarding' });
+        return sendApiError(res, error, 'Failed to complete onboarding');
+    }
+});
+
+// POST /api/auth/logout - Revoke all access tokens issued to this user.
+router.post('/logout', authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+        await prisma.user.updateMany({
+            where: { id: req.user?.id, companyId: req.companyId },
+            data: { authVersion: { increment: 1 } },
+        });
+        clearSessionCookie(res);
+        res.json({ success: true });
+    } catch (error) {
+        return sendApiError(res, error, 'Logout failed');
     }
 });
 

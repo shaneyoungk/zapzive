@@ -28,6 +28,7 @@ export function useSwap() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['treasury'] });
             queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['analytics'] });
             toast.success('Swap executed successfully');
         },
         onError: (error: any) => {
@@ -45,6 +46,7 @@ export function useDeposit() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['treasury'] });
             queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['analytics'] });
             toast.success('Deposit processed successfully');
         },
         onError: (error: any) => {
@@ -62,6 +64,7 @@ export function useWithdraw() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['treasury'] });
             queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['analytics'] });
             toast.success('Withdrawal initiated successfully');
         },
         onError: (error: any) => {

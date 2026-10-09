@@ -7,8 +7,8 @@ export default function Errors() {
     return (
         <div className="space-y-16 max-w-5xl pb-20">
             <section className="space-y-6">
-                <h1 className="text-5xl font-bold text-white tracking-tight">Errors & Status</h1>
-                <p className="text-xl text-zinc-400 leading-relaxed max-w-3xl">
+                <h1 className="text-5xl font-bold text-[#20211e] tracking-tight">Errors & Status</h1>
+                <p className="text-xl text-[#575750] leading-relaxed max-w-3xl">
                     zapzive uses standard HTTP response codes to indicate the success or
                     failure of an API request. Codes in the `4xx` range indicate an error
                     that failed given the information provided.
@@ -17,12 +17,12 @@ export default function Errors() {
 
             {/* Error Object structure */}
             <section className="space-y-8">
-                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                    <Terminal className="w-6 h-6 text-emerald-400" /> Error Object
+                <h2 className="text-2xl font-bold text-[#20211e] flex items-center gap-3">
+                    <Terminal className="w-6 h-6 text-[#087f5b]" /> Error Object
                 </h2>
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
                     <div className="space-y-6">
-                        <p className="text-zinc-400 leading-relaxed">
+                        <p className="text-[#575750] leading-relaxed">
                             Every error response includes a JSON object detailing the `type` of
                             failure and a human-readable `message`. This allows your code to
                             programmatically react to specific edge cases.
@@ -41,11 +41,11 @@ export default function Errors() {
             </section>
 
             {/* Status Code Table */}
-            <section className="space-y-8 border-t border-white/5 pt-16">
-                <h2 className="text-2xl font-bold text-white">HTTP Status Codes</h2>
-                <div className="border border-white/5 rounded-2xl overflow-hidden bg-white/[0.01]">
+            <section className="space-y-8 border-t border-[#d9d6cd] pt-16">
+                <h2 className="text-2xl font-bold text-[#20211e]">HTTP Status Codes</h2>
+                <div className="border border-[#d9d6cd] rounded-2xl overflow-hidden bg-[#fffdf8]">
                     <table className="w-full text-sm text-left">
-                        <thead className="bg-white/5 text-zinc-300 font-bold">
+                        <thead className="bg-[#f5f3ee] text-[#575750] font-bold">
                             <tr>
                                 <th className="px-6 py-4">Code</th>
                                 <th className="px-6 py-4">Meaning</th>
@@ -68,23 +68,23 @@ export default function Errors() {
             </section>
 
             <DocCallout type="mistake" title="Ignoring 429s">
-                Never ignore 429 errors. Your application should implement <span className="font-bold text-white">Exponential Backoff</span>
+                Never ignore 429 errors. Your application should implement <span className="font-bold text-[#20211e]">Exponential Backoff</span>
                 and Jitter to spread out retries. Our SDKs handle this automatically.
             </DocCallout>
 
             {/* Help section */}
-            <section className="bg-white/[0.02] border border-white/5 rounded-3xl p-10 flex flex-col md:flex-row gap-8 items-center text-center md:text-left">
-                <div className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800">
-                    <HelpCircle className="w-8 h-8 text-blue-400" />
+            <section className="bg-[#fffdf8] border border-[#d9d6cd] rounded-3xl p-10 flex flex-col md:flex-row gap-8 items-center text-center md:text-left">
+                <div className="p-4 rounded-2xl bg-[#f5f3ee] border border-[#d9d6cd]">
+                    <HelpCircle className="w-8 h-8 text-[#087f5b]" />
                 </div>
                 <div className="space-y-2 flex-1">
-                    <h3 className="text-xl font-bold text-white">Still stuck?</h3>
-                    <p className="text-sm text-zinc-500">
-                        Include the <code className="text-emerald-400">Request-Id</code> (found in response headers)
+                    <h3 className="text-xl font-bold text-[#20211e]">Still stuck?</h3>
+                    <p className="text-sm text-[#77766e]">
+                        Include the <code className="text-[#087f5b]">Request-Id</code> (found in response headers)
                         when contacting support to help us trace your specific transaction.
                     </p>
                 </div>
-                <button className="h-10 px-6 rounded-full bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-all">
+                <button className="h-10 px-6 rounded-full bg-[#fffdf8] text-[#20211e] font-bold text-xs hover:bg-[#f0f3ed] transition-all">
                     Contact Engineering
                 </button>
             </section>
@@ -95,10 +95,10 @@ export default function Errors() {
 
 function CodeRow({ code, meaning, desc }: { code: string; meaning: string; desc: string }) {
     return (
-        <tr className="hover:bg-white/[0.02] transition-colors">
-            <td className="px-6 py-4 font-mono font-bold text-emerald-400">{code}</td>
-            <td className="px-6 py-4 font-bold text-zinc-300">{meaning}</td>
-            <td className="px-6 py-4 text-zinc-500 leading-relaxed text-[13px]">{desc}</td>
+        <tr className="hover:bg-[#fffdf8] transition-colors">
+            <td className="px-6 py-4 font-mono font-bold text-[#087f5b]">{code}</td>
+            <td className="px-6 py-4 font-bold text-[#575750]">{meaning}</td>
+            <td className="px-6 py-4 text-[#77766e] leading-relaxed text-[13px]">{desc}</td>
         </tr>
     );
 }

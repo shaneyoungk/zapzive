@@ -14,12 +14,13 @@ interface LiquidityBarProps {
 }
 
 export default function LiquidityBar({ segments, total, className }: LiquidityBarProps) {
+    const safeTotal = total > 0 ? total : 1;
     return (
         <div className={cn("w-full", className)}>
             {/* The Bar */}
-            <div className="flex h-3 w-full overflow-hidden bg-zinc-900 rounded-full mb-6 ring-1 ring-zinc-800">
+            <div className="mb-6 flex h-2.5 w-full overflow-hidden rounded-full bg-[#e1dfd7] ring-1 ring-[#d9d6cd]">
                 {segments.map((segment, index) => {
-                    const percentage = (segment.value / total) * 100;
+                    const percentage = (segment.value / safeTotal) * 100;
                     if (percentage === 0) return null;
 
                     return (
@@ -27,7 +28,7 @@ export default function LiquidityBar({ segments, total, className }: LiquidityBa
                             key={index}
                             style={{ width: `${percentage}%` }}
                             className={cn(
-                                "h-full border-r border-black/20 last:border-0",
+                                "h-full border-r border-[#fffdf8] last:border-0",
                                 segment.bgColor
                             )}
                         />
@@ -35,26 +36,19 @@ export default function LiquidityBar({ segments, total, className }: LiquidityBa
                 })}
             </div>
 
-            {/* Grid Data Table (4 Columns: Bullet | Label | % | Value) */}
-            <div className="grid grid-cols-[auto_1fr_auto_auto] gap-x-4 gap-y-3 items-center">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3">
                 {segments.map((segment, index) => (
                     <div key={`row-${index}`} className="contents group">
                         {/* Col 1: Bullet */}
-                        <div className={cn("w-2 h-2 rounded-full ring-1 ring-black/50", segment.bgColor)} />
+                        <div className={cn("h-2 w-2 rounded-full ring-1 ring-[#d9d6cd]", segment.bgColor)} />
 
                         {/* Col 2: Label */}
-                        <span className="text-[11px] font-medium text-zinc-400 group-hover:text-zinc-200 transition-colors">
+                        <span className="text-[11px] font-medium text-[#575750]">
                             {segment.label}
                         </span>
 
-                        {/* Col 3: Percentage */}
-                        <span className="text-[10px] font-mono text-zinc-600 text-right">
-                            {((segment.value / total) * 100).toFixed(0)}%
-                        </span>
-
-                        {/* Col 4: Value */}
-                        <span className="text-sm font-mono font-medium text-zinc-200 tabular-nums tracking-tight text-right">
-                            ${segment.value.toLocaleString()}
+                        <span className="whitespace-nowrap text-right font-mono text-[10px] font-medium tabular-nums text-[#20211e]">
+                            <span className="mr-2 text-[#77766e]">{total > 0 ? ((segment.value / total) * 100).toFixed(0) : "0"}%</span>${segment.value.toLocaleString()}
                         </span>
                     </div>
                 ))}

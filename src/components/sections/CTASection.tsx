@@ -1,84 +1,57 @@
-import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
-import { ArrowRight, Zap, Shield, Clock, Globe } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
+const startingPoints = [
+  ["01", "Create a workspace", "Your company gets an isolated test environment."],
+  ["02", "Set up a payment", "Add a sample batch, transfer, escrow, or balance move."],
+  ["03", "Review the result", "See every status change and the resulting record."],
+] as const;
+
 export function CTASection() {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
-
   return (
-    <section ref={ref} className="py-32 lg:py-40 relative overflow-hidden">
-      {/* Background glow - Removed */}
-      <div className="absolute inset-0 bg-grid opacity-30" />
-
-      <div className="container mx-auto relative z-10 px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="bg-[#0F0F10] border border-white/10 shadow-2xl rounded-[2.5rem] p-12 lg:p-20 text-center max-w-5xl mx-auto"
-        >
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2.5 tag tag-accent mb-8">
-            <Zap className="w-4 h-4" />
-            Sandbox available for payout and escrow testing
-          </div>
-
-          <h2 className="text-3xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-white mb-8 leading-tight">
-            Start moving money globally <br />
-            with fewer delays.
+    <section className="border-b border-[#d4d8cf] bg-[#e9eee7] px-6 py-24 sm:py-32">
+      <div className="homepage-frame grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,.85fr)] lg:gap-20">
+        <div>
+          <p className="homepage-eyebrow">Start in test mode</p>
+          <h2 className="homepage-title">
+            Set up the workflow first.<br />
+            <em>Use a supported rail when you are ready.</em>
           </h2>
-          <p className="text-xl sm:text-2xl text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed">
-            Launch in sandbox. Test payouts. Move to production when ready.
+          <p className="homepage-copy">
+            Create test payments, review the complete record, and learn the controls your team needs before you move to a supported connected crypto rail.
           </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-            <Link to="/pricing">
-              <Button
-                size="lg"
-                className="bg-white hover:bg-zinc-200 text-black font-bold px-10 py-7 text-lg group w-full sm:w-auto rounded-lg transition-all duration-300"
-              >
-                Create Account
-                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
-            <Link to="/contact">
-              <Button
-                variant="outline"
-                size="lg"
-                className="border-zinc-800 bg-transparent text-zinc-400 hover:bg-zinc-900 hover:text-white hover:border-zinc-700 font-semibold px-10 py-7 text-lg w-full sm:w-auto rounded-lg transition-all duration-300"
-              >
-                Talk to Sales
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <Link to="/signup">
+              <Button size="lg" className="h-12 rounded-[10px] bg-[#20211e] px-6 text-sm font-semibold text-[#fffdf8] hover:bg-[#087f5b]">
+                Create a workspace <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
             <Link to="/docs">
-              <Button
-                variant="outline"
-                size="lg"
-                className="border-zinc-800 bg-transparent text-zinc-400 hover:bg-zinc-900 hover:text-white hover:border-zinc-700 font-semibold px-10 py-7 text-lg w-full sm:w-auto rounded-lg transition-all duration-300"
-              >
-                Read Docs
+              <Button variant="outline" size="lg" className="h-12 rounded-[10px] border-[#aeb8ae] bg-transparent px-6 text-sm font-semibold text-[#20211e] hover:border-[#20211e] hover:bg-[#fffdf8]">
+                Read API docs
               </Button>
             </Link>
           </div>
+        </div>
 
-          {/* Trust indicators */}
-          <div className="flex flex-wrap items-center justify-center gap-10">
-            {[
-              { icon: Shield, label: "SOC 2 & KYC/AML" },
-              { icon: Clock, label: "< 3s Settlement" },
-              { icon: Globe, label: "40+ Countries" },
-              { icon: Zap, label: "Polygon & Base" },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center gap-3 text-base font-bold text-zinc-500 uppercase tracking-tight text-[11px]">
-                <item.icon className="w-5 h-5 text-brand-500/60" />
-                {item.label}
+        <div className="border-y border-[#bdc8bd] lg:border-l lg:border-y-0 lg:pl-12">
+          <p className="pt-6 font-mono text-[10px] font-semibold uppercase tracking-[.12em] text-[#087f5b] lg:pt-0">Your first three steps</p>
+          <div className="mt-5">
+            {startingPoints.map(([number, title, detail]) => (
+              <div key={number} className="grid grid-cols-[40px_minmax(0,1fr)] gap-3 border-t border-[#cbd4c9] py-5 first:border-t-0 first:pt-0">
+                <span className="font-mono text-[11px] font-semibold tracking-[.08em] text-[#087f5b]">{number}</span>
+                <div>
+                  <h3 className="text-lg font-bold tracking-[-.04em] text-[#20211e]">{title}</h3>
+                  <p className="mt-1 text-[15px] leading-6 text-[#5d5d56]">{detail}</p>
+                </div>
               </div>
             ))}
           </div>
-        </motion.div>
+          <div className="flex items-center gap-2 border-t border-[#bdc8bd] py-5 text-sm font-semibold text-[#087f5b]">
+            <Check size={16} /> Test mode and supported crypto rails
+          </div>
+        </div>
       </div>
     </section>
   );

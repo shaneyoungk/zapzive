@@ -108,7 +108,7 @@ export default function TreasuryTransfer() {
                 {step === "select" && (
                     <motion.div
                         key="select"
-                        initial={{ opacity: 0, x: 20 }}
+                        initial={false}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         className="space-y-6"
@@ -165,7 +165,7 @@ export default function TreasuryTransfer() {
                 {step === "details" && (
                     <motion.div
                         key="details"
-                        initial={{ opacity: 0, x: 20 }}
+                        initial={false}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         className="space-y-6"
@@ -272,7 +272,7 @@ export default function TreasuryTransfer() {
                 {step === "confirm" && (
                     <motion.div
                         key="confirm"
-                        initial={{ opacity: 0, x: 20 }}
+                        initial={false}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         className="space-y-6"
@@ -349,7 +349,7 @@ export default function TreasuryTransfer() {
                 {step === "success" && (
                     <motion.div
                         key="success"
-                        initial={{ opacity: 0, scale: 0.95 }}
+                        initial={false}
                         animate={{ opacity: 1, scale: 1 }}
                         className="space-y-6"
                     >

@@ -32,7 +32,7 @@ function CellValue({ value, iszapzive = false }: { value: boolean | string; isza
     );
   }
   return (
-    <span className={`text-sm ${iszapzive ? "text-white font-bold" : "text-zinc-300 font-medium"}`}>
+    <span className={`text-sm ${iszapzive ? "text-[#087f5b] font-semibold" : "text-[#575750] font-medium"}`}>
       {value}
     </span>
   );
@@ -74,18 +74,18 @@ export function ComparisonSection() {
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          className="rounded-3xl overflow-hidden border border-zinc-700 bg-gradient-to-b from-[#111] to-black shadow-[0_8px_30px_-12px_rgba(0,0,0,0.8)]"
+          className="rounded-[20px] overflow-hidden border border-[#d9d6cd] bg-[#fffdf8] shadow-[0_10px_28px_rgba(32,33,30,.06)]"
         >
           <div className="overflow-x-auto scrollbar-hide">
             <table className="w-full min-w-[600px] sm:min-w-[800px]">
               <thead>
-                <tr className="border-b border-white/10">
+                <tr className="border-b border-[#d9d6cd] bg-[#f5f3ee]">
                   {comparisonData.headers.map((header, index) => (
                     <th
                       key={header}
                       className={`px-8 py-6 text-left text-base font-bold ${index === 1
-                        ? "text-white bg-white/[0.03] border-x border-white/5"
-                        : "text-zinc-500"
+                        ? "text-[#087f5b] bg-[#e8eee4] border-x border-[#cdd8c8]"
+                        : "text-[#77766e]"
                         }`}
                     >
                       {index === 1 && (
@@ -103,13 +103,13 @@ export function ComparisonSection() {
                 {comparisonData.rows.map((row, rowIndex) => (
                   <tr
                     key={row.feature}
-                    className={`border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors ${rowIndex % 2 === 1 ? "bg-white/[0.02]" : ""
+                    className={`border-b border-[#e4e1d8] last:border-0 hover:bg-[#f5f3ee] transition-colors ${rowIndex % 2 === 1 ? "bg-[#fbf9f4]" : ""
                       }`}
                   >
-                    <td className="px-8 py-5 text-base font-semibold text-white">
+                    <td className="px-8 py-5 text-base font-semibold text-[#20211e]">
                       {row.feature}
                     </td>
-                    <td className="px-8 py-5 bg-white/[0.03] border-x border-white/5">
+                    <td className="px-8 py-5 bg-[#eef3eb] border-x border-[#cdd8c8]">
                       <div className="flex items-center gap-3">
                         <CellValue value={row.zapzive} iszapzive />
                       </div>

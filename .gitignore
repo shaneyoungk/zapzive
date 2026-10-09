@@ -1,4 +1,5 @@
 # Logs
+.local/
 logs
 *.log
 npm-debug.log*
@@ -118,3 +119,5 @@ dist
 # Documentation (Internal)
 *.md
 !README.md
+.vercel
+.env*

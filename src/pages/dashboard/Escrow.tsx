@@ -49,6 +49,7 @@ interface Contract {
     milestones: Milestone[];
     chain: string;
     contractAddress?: string;
+    _count?: { bids: number };
 }
 
 // Mocks removed
@@ -84,54 +85,21 @@ export default function Escrow() {
 
     return (
         <div className="p-4 lg:p-6 max-w-[1600px] mx-auto space-y-6 animate-fade-in">
-            {/* Header */}
-            <div className="flex items-center justify-end">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                <div><p className="dashboard-eyebrow">Protected settlement</p><h1 className="mt-2 text-3xl">Escrow contracts</h1><p className="mt-2 text-sm text-[#77766e]">Milestones, evidence, approvals, and controlled releases.</p></div>
                 <Button
-                    className="h-8 px-4 text-[10px] font-bold bg-white text-black hover:bg-zinc-200"
                     onClick={() => setIsNewContractOpen(true)}
                 >
-                    <Plus className="w-3 h-3 mr-2" />
-                    New Contract
+                    <Plus className="h-4 w-4" />
+                    New contract
                 </Button>
             </div>
 
-            {/* Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Active Contracts</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 tabular-nums">{activeContracts}</h3>
-                    <p className="text-xs text-zinc-500">{allContracts.length} total</p>
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Locked Funds</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 font-mono tabular-nums">
-                        ${(totalLocked || 0).toLocaleString()}
-                    </h3>
-                    <p className="text-xs text-zinc-500">across {activeContracts} contracts</p>
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Released</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 font-mono tabular-nums">
-                        ${(totalReleased || 0).toLocaleString()}
-                    </h3>
-                    <p className="text-xs text-emerald-400 font-medium">This month</p>
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Disputes</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 tabular-nums">{disputedContracts}</h3>
-                    <p className="text-xs text-amber-400 font-medium">Needs attention</p>
-                </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <MetricCard title="Active contracts" value={activeContracts} icon={ShieldCheck} subtitle={`${allContracts.length} total`} />
+                <MetricCard title="Locked funds" value={`$${(totalLocked || 0).toLocaleString()}`} icon={Lock} subtitle={`Across ${activeContracts} contracts`} />
+                <MetricCard title="Released" value={`$${(totalReleased || 0).toLocaleString()}`} icon={Unlock} subtitle="This month" />
+                <MetricCard title="Disputes" value={disputedContracts} icon={AlertTriangle} subtitle={disputedContracts ? "Needs attention" : "No open disputes"} />
             </div>
 
             {/* Filters */}
@@ -190,9 +158,9 @@ export default function Escrow() {
                                             {contract.title}
                                         </h4>
                                         <StatusBadge status={contract.status} />
-                                        {(contract as any)._count?.bids > 0 && (
+                                        {(contract._count?.bids || 0) > 0 && (
                                             <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-xs font-semibold border border-amber-500/20">
-                                                {(contract as any)._count.bids} {(contract as any)._count.bids === 1 ? 'bid' : 'bids'}
+                                                {contract._count?.bids} {contract._count?.bids === 1 ? 'bid' : 'bids'}
                                             </span>
                                         )}
                                     </div>
@@ -414,7 +382,7 @@ export default function Escrow() {
                                                     </h5>
                                                     <p className="text-xs text-muted-foreground">{milestone.description}</p>
                                                 </div>
-                                                <StatusBadge status={milestone.status as any} />
+                                                <StatusBadge status={milestone.status === "in-progress" ? "processing" : milestone.status} />
                                             </div>
 
                                             <div className="flex items-center justify-between text-xs mt-3">

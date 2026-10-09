@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authMiddleware, AuthRequest } from '../middleware/auth.middleware';
+import { ApiError, parseBoundedLimit, requiredText, safeEmail, sendApiError } from '../lib/security';
 
 const router = Router();
 
@@ -10,8 +11,12 @@ router.use(authMiddleware as any);
 // GET /api/agents - List all agents
 router.get('/', async (req: AuthRequest, res: Response) => {
     try {
-        const status = req.query.status as string;
-        const search = req.query.search as string;
+        const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+        const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) : undefined;
+        const limit = parseBoundedLimit(req.query.limit, 50, 100);
+        if (status && !['active', 'inactive', 'pending'].includes(status)) {
+            throw new ApiError(422, 'INVALID_AGENT_STATUS', 'Unsupported agent status.');
+        }
 
         const where: any = { companyId: req.companyId };
         if (status) where.status = status;
@@ -25,6 +30,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
         const agents = await prisma.agent.findMany({
             where,
+            take: limit,
             include: {
                 transactions: {
                     take: 5,
@@ -36,14 +42,18 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
         res.json(agents);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch agents' });
+        return sendApiError(res, error, 'Failed to fetch agents');
     }
 });
 
 // POST /api/agents - Register new agent
 router.post('/', async (req: AuthRequest, res: Response) => {
     try {
-        const { name, location, country, phone, email } = req.body;
+        const name = requiredText(req.body?.name, 'name', 120);
+        const location = requiredText(req.body?.location, 'location', 160);
+        const country = requiredText(req.body?.country, 'country', 80);
+        const phone = requiredText(req.body?.phone, 'phone', 40);
+        const email = safeEmail(req.body?.email);
 
         const agent = await prisma.agent.create({
             data: {
@@ -63,15 +73,15 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 
         res.status(201).json(agent);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to register agent' });
+        return sendApiError(res, error, 'Failed to register agent');
     }
 });
 
 // GET /api/agents/:id - Get agent details
 router.get('/:id', async (req: AuthRequest, res: Response) => {
     try {
-        const agent = await prisma.agent.findUnique({
-            where: { id: req.params.id },
+        const agent = await prisma.agent.findFirst({
+            where: { id: req.params.id, companyId: req.companyId },
             include: {
                 transactions: {
                     orderBy: { createdAt: 'desc' }
@@ -85,63 +95,70 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
 
         res.json(agent);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch agent' });
+        return sendApiError(res, error, 'Failed to fetch agent');
     }
 });
 
 // PUT /api/agents/:id - Update agent
 router.put('/:id', async (req: AuthRequest, res: Response) => {
     try {
-        const agent = await prisma.agent.update({
-            where: { id: req.params.id },
-            data: req.body
-        });
+        const existing = await prisma.agent.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Agent not found', code: 'NOT_FOUND' });
+        const data = {
+            name: req.body?.name === undefined ? existing.name : requiredText(req.body.name, 'name', 120),
+            location: req.body?.location === undefined ? existing.location : requiredText(req.body.location, 'location', 160),
+            country: req.body?.country === undefined ? existing.country : requiredText(req.body.country, 'country', 80),
+            phone: req.body?.phone === undefined ? existing.phone : requiredText(req.body.phone, 'phone', 40),
+            email: req.body?.email === undefined ? existing.email : safeEmail(req.body.email),
+        };
+        const agent = await prisma.agent.update({ where: { id: existing.id }, data });
 
         res.json(agent);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to update agent' });
+        return sendApiError(res, error, 'Failed to update agent');
     }
 });
 
 // POST /api/agents/:id/activate - Activate agent
 router.post('/:id/activate', async (req: AuthRequest, res: Response) => {
     try {
-        const agent = await prisma.agent.update({
-            where: { id: req.params.id },
-            data: { status: 'active' }
-        });
+        const existing = await prisma.agent.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Agent not found', code: 'NOT_FOUND' });
+        const agent = await prisma.agent.update({ where: { id: existing.id }, data: { status: 'active' } });
 
         res.json(agent);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to activate agent' });
+        return sendApiError(res, error, 'Failed to activate agent');
     }
 });
 
 // POST /api/agents/:id/deactivate - Deactivate agent
 router.post('/:id/deactivate', async (req: AuthRequest, res: Response) => {
     try {
-        const agent = await prisma.agent.update({
-            where: { id: req.params.id },
-            data: { status: 'inactive' }
-        });
+        const existing = await prisma.agent.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Agent not found', code: 'NOT_FOUND' });
+        const agent = await prisma.agent.update({ where: { id: existing.id }, data: { status: 'inactive' } });
 
         res.json(agent);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to deactivate agent' });
+        return sendApiError(res, error, 'Failed to deactivate agent');
     }
 });
 
 // GET /api/agents/:id/transactions - Agent transactions
 router.get('/:id/transactions', async (req: AuthRequest, res: Response) => {
     try {
+        const agent = await prisma.agent.findFirst({ where: { id: req.params.id, companyId: req.companyId }, select: { id: true } });
+        if (!agent) return res.status(404).json({ error: 'Agent not found', code: 'NOT_FOUND' });
         const transactions = await prisma.agentTransaction.findMany({
             where: { agentId: req.params.id },
+            take: parseBoundedLimit(req.query.limit, 50, 100),
             orderBy: { createdAt: 'desc' }
         });
 
         res.json(transactions);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch agent transactions' });
+        return sendApiError(res, error, 'Failed to fetch agent transactions');
     }
 });
 

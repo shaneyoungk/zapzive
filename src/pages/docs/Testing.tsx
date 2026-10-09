@@ -1,104 +1,100 @@
+import { ArrowRight, Check, FlaskConical, ShieldAlert } from "lucide-react";
+import { Link } from "react-router-dom";
 import { CodeWindow } from "@/components/docs/CodeWindow";
 import { DocCallout } from "@/components/docs/DocCallout";
-import { Badge } from "@/components/ui/badge";
-import { Zap, FlaskConical, ShieldCheck, Microscope, AlertTriangle } from "lucide-react";
-import { Link } from "react-router-dom";
+
+const testCode = [
+  "const response = await fetch(API_BASE_URL + \"/api/remittance\", {",
+  "  method: \"POST\",",
+  "  headers: {",
+  "    ...headers,",
+  "    \"Idempotency-Key\": \"test-remittance-001\",",
+  "  },",
+  "  body: JSON.stringify({",
+  "    sender: \"QA Sandbox\",",
+  "    recipientId: process.env.SANDBOX_RECIPIENT_ID,",
+  "    amount: 25,",
+  "    currency: \"USDC\",",
+  "    localCurrency: \"KES\",",
+  "    deliveryMethod: \"mobile-money\",",
+  "  }),",
+  "});",
+  "const result = await response.json();",
+].join("\n");
+
+const scenarios = [
+  ["Happy path", "Deposit test balance, create a quote, then submit a remittance.", "201 completed"],
+  ["Duplicate retry", "Repeat the same write with the same Idempotency-Key.", "Original response"],
+  ["Insufficient funds", "Submit more than the persisted asset balance.", "409 insufficient balance"],
+  ["Unauthorized access", "Use no session, an expired session, or another organization ID.", "401 or scoped 404"],
+  ["Invalid transition", "Execute a draft payroll batch or release an unfunded escrow.", "409 invalid state"],
+  ["Input abuse", "Send invalid amount precision, unsupported corridors, or oversized lists.", "422 validation error"],
+];
 
 export default function Testing() {
-    return (
-        <div className="space-y-16 max-w-5xl pb-20">
-            <section className="space-y-6">
-                <h1 className="text-5xl font-bold text-white tracking-tight">Testing & Sandbox</h1>
-                <p className="text-xl text-zinc-400 leading-relaxed max-w-3xl">
-                    Our dedicated Sandbox environment allows you to simulate every part of the
-                    zapzive lifecycle—from bank settlement to KYC rejection—without any
-                    financial risk or regulatory overhead.
-                </p>
-            </section>
+  return (
+    <div className="pb-24">
+      <header className="border-b border-[#d9d6cd] pb-12">
+        <p className="mono-label text-[#087f5b]">Testing · Sandbox discipline</p>
+        <h1 className="mt-5 max-w-4xl text-5xl sm:text-6xl">Test the state machine, not just the happy path.</h1>
+        <p className="mt-6 max-w-2xl text-lg leading-8 text-[#575750]">
+          The sandbox stores real application records and exercises validation, organization isolation, idempotency, and balance safeguards without connecting to live providers.
+        </p>
+      </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <DocCallout type="info" title="Environment URL">
-                    To target the sandbox, use the base URL <code className="text-white">https://api.sandbox.zapzive.com</code>
-                    or simply use your `sk_test_...` key with our SDKs.
-                </DocCallout>
-                <DocCallout type="warning" title="No Real Money">
-                    Transactions in the Sandbox are purely illustrative. No real funds will
-                    ever move, regardless of the bank account or card details provided.
-                </DocCallout>
-            </div>
+      <div className="mt-10 grid gap-4 md:grid-cols-2">
+        <DocCallout type="info" title="Environment">
+          Use a separate test workspace, <code>sk_test_...</code> credentials, and dummy identities. The API base URL is the deployment URL with the <code>/api</code> route prefix.
+        </DocCallout>
+        <DocCallout type="warning" title="No real money">
+          Sandbox balances and settlement references are test records. Do not upload passports, bank statements, private keys, or production customer data.
+        </DocCallout>
+      </div>
 
-            {/* Test Scenarios */}
-            <section className="space-y-10">
-                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                    <Microscope className="w-6 h-6 text-purple-400" /> Simulating Events
-                </h2>
-                <p className="text-zinc-400 leading-relaxed">
-                    Trigger specific system behaviors by providing "magic amounts" or special strings.
-                    This allows you to test how your application handles edge cases like
-                    insufficient funds or compliance blocks.
-                </p>
-
-                <div className="border border-white/5 rounded-2xl overflow-hidden bg-white/[0.01]">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-white/5 text-zinc-300 font-bold">
-                            <tr>
-                                <th className="px-6 py-4">Scenario</th>
-                                <th className="px-6 py-4">Trigger</th>
-                                <th className="px-6 py-4">Resulting API Response</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                            <TestRow scenario="Success" trigger="Amount < $1000.00" result="200 OK / payout.paid" color="text-emerald-400" />
-                            <TestRow scenario="Insufficient Funds" trigger="Amount = $99.01" result="402 Error" color="text-amber-400" />
-                            <TestRow scenario="Compliance Reject" trigger="Amount = $99.02" result="403 Error / kyc.rejected" color="text-red-400" />
-                            <TestRow scenario="Bank Timeout" trigger="Amount = $99.03" result="504 Timeout simulation" color="text-zinc-400" />
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <DocCallout type="mistake" title="Live Data in Sandbox">
-                Never import real user data (Passport scans, SSNs) into the Sandbox.
-                Even though it's restricted, we recommend using dummy data like
-                "John Doe" and "123 Test St" for all sandbox registrations.
-            </DocCallout>
-
-            {/* Integration Test code */}
-            <section className="space-y-8 border-t border-white/5 pt-16">
-                <h2 className="text-2xl font-bold text-white">Example Integration Test</h2>
-                <p className="text-zinc-500 text-sm">Use Jest or Mocha to verify your webhook handlers using test events.</p>
-                <CodeWindow
-                    language="typescript"
-                    title="webhook.test.ts"
-                    code={`it('should handle successful payout events', async () => {\n  const res = await request(app)\n    .post('/webhooks')\n    .send(testPayoutPaidEvent)\n    .set('zapzive-Signature', 'mock_sig');\n\n  expect(res.status).toBe(200);\n  expect(updateDatabase).toHaveBeenCalled();\n});`}
-                />
-            </section>
-
-            <section className="bg-emerald-500/5 border border-emerald-500/20 rounded-3xl p-12 text-center space-y-4">
-                <FlaskConical className="w-12 h-12 text-emerald-400 mx-auto" />
-                <h3 className="text-2xl font-bold text-white">Finished Testing?</h3>
-                <p className="text-zinc-400 max-w-xl mx-auto text-sm">
-                    Move your integration to production by swapping keys and following our
-                    graduation checklist.
-                </p>
-                <Link to="/docs/go-live">
-                    <button className="h-10 px-6 rounded-full bg-emerald-500 text-black font-bold text-xs hover:bg-emerald-400 transition-all">
-                        Move to Production
-                    </button>
-                </Link>
-            </section>
-
+      <section className="mt-14" aria-labelledby="scenarios">
+        <div className="flex items-end justify-between gap-5">
+          <div>
+            <p className="mono-label text-[#087f5b]">Scenario matrix</p>
+            <h2 id="scenarios" className="mt-3 text-3xl">Prove every boundary.</h2>
+          </div>
+          <ShieldAlert className="hidden h-7 w-7 text-[#087f5b] sm:block" />
         </div>
-    );
-}
+        <div className="mt-7 overflow-hidden rounded-2xl border border-[#d9d6cd] bg-[#fffdf8]">
+          <div className="hidden grid-cols-[.8fr_1.5fr_.8fr] border-b border-[#d9d6cd] bg-[#f5f3ee] px-5 py-3 font-mono text-[9px] font-semibold uppercase tracking-[.1em] text-[#77766e] sm:grid">
+            <span>Scenario</span><span>Test action</span><span>Expected result</span>
+          </div>
+          {scenarios.map(([scenario, trigger, result]) => (
+            <div key={scenario} className="grid gap-2 border-b border-[#e1dfd7] px-5 py-4 last:border-0 sm:grid-cols-[.8fr_1.5fr_.8fr] sm:gap-5">
+              <p className="text-sm font-semibold text-[#20211e]">{scenario}</p>
+              <p className="text-sm leading-6 text-[#575750]">{trigger}</p>
+              <p className="font-mono text-xs text-[#087f5b]">{result}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-function TestRow({ scenario, trigger, result, color }: { scenario: string; trigger: string; result: string; color: string }) {
-    return (
-        <tr className="hover:bg-white/[0.02] transition-colors">
-            <td className="px-6 py-4 font-bold text-white">{scenario}</td>
-            <td className="px-6 py-4 text-zinc-400 font-mono text-xs">{trigger}</td>
-            <td className={`px-6 py-4 font-mono text-xs ${color}`}>{result}</td>
-        </tr>
-    );
-}
+      <section className="mt-16 grid gap-10 border-t border-[#d9d6cd] pt-12 lg:grid-cols-[.8fr_1.2fr] lg:items-start">
+        <div>
+          <p className="mono-label text-[#087f5b]">Integration test</p>
+          <h2 className="mt-3 text-3xl">Assert the response and the record.</h2>
+          <p className="mt-4 text-base leading-7 text-[#575750]">
+            A 201 response is not enough for a financial workflow. Follow it with a balance, detail, or history read and assert that the linked records agree.
+          </p>
+        </div>
+        <CodeWindow showLineNumbers language="typescript" title="sandbox-remittance.test.ts" code={testCode} />
+      </section>
 
+      <section className="mt-16 rounded-2xl border border-[#cdd8c8] bg-[#e8eee4] p-6 sm:p-8">
+        <div className="flex items-start gap-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#b9d9cc] bg-[#fffdf8] text-[#087f5b]"><FlaskConical size={19} /></span>
+          <div>
+            <p className="mono-label text-[#087f5b]">Next step</p>
+            <h2 className="mt-3 text-2xl">Move only after the production gate is complete.</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#575750]">Provider-backed settlement, durable workers, signed webhook delivery, MFA, managed database, and operational monitoring must be reviewed separately.</p>
+            <Link to="/docs/go-live" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#087f5b]">Open the go-live checklist <ArrowRight size={15} /></Link>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}

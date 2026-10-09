@@ -85,47 +85,19 @@ export default function Compliance() {
 
     return (
         <div className="p-4 lg:p-6 max-w-[1600px] mx-auto space-y-6 animate-fade-in">
-            {/* Header */}
-            <div className="flex items-center justify-end">
-                <Button onClick={generateReport} className="h-8 px-4 text-[10px] font-bold bg-white text-black hover:bg-zinc-200">
-                    <FileText className="w-3 h-3 mr-2" />
-                    Generate Report
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                <div><p className="dashboard-eyebrow">Risk controls</p><h1 className="mt-2 text-3xl">Compliance review</h1><p className="mt-2 text-sm text-[#77766e]">Identity verification, transaction screening, and review outcomes.</p></div>
+                <Button onClick={generateReport}>
+                    <FileText className="h-4 w-4" />
+                    Generate report
                 </Button>
             </div>
 
-            {/* Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">KYC Completion</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 tabular-nums">{kycCompletion}%</h3>
-                    <p className="text-xs text-zinc-500 font-medium">{verifiedKyc} of {kycItems.length} verified</p>
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Pending Reviews</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 tabular-nums">{pendingCount}</h3>
-                    <p className="text-xs text-amber-400 font-medium">Needs attention</p>
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Flagged Items</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 tabular-nums">{flaggedCount}</h3>
-                    <p className="text-xs text-red-500 font-medium">High priority</p>
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Approved</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 tabular-nums">{approvedCount}</h3>
-                    <p className="text-xs text-zinc-500">This month</p>
-                </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <MetricCard title="KYC completion" value={`${kycCompletion}%`} icon={ShieldCheck} subtitle={`${verifiedKyc} of ${kycItems.length} verified`} />
+                <MetricCard title="Pending reviews" value={pendingCount} icon={Clock} subtitle="Needs review" />
+                <MetricCard title="Flagged items" value={flaggedCount} icon={AlertTriangle} subtitle={flaggedCount ? "High priority" : "No open flags"} />
+                <MetricCard title="Approved" value={approvedCount} icon={CheckCircle2} subtitle="This month" />
             </div>
 
             {/* Filters */}

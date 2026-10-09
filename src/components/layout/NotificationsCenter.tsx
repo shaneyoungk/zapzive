@@ -91,7 +91,7 @@ export default function NotificationsCenter() {
     return (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
-                <button className="relative p-2 text-zinc-500 hover:text-white transition-colors">
+                <button className="relative flex h-9 w-9 items-center justify-center rounded-full border border-[#d9d6cd] bg-[#fffdf8] text-[#77766e] transition-colors hover:border-[#b9d9cc] hover:text-[#20211e]" aria-label="Open notifications">
                     <Bell className="w-4 h-4" />
                     {unreadCount > 0 && (
                         <motion.span
@@ -104,14 +104,14 @@ export default function NotificationsCenter() {
             </PopoverTrigger>
             <PopoverContent
                 align="end"
-                className="w-96 p-0 bg-[#121212] border-white/10"
+                className="w-[min(384px,calc(100vw-24px))] overflow-hidden rounded-2xl border-[#d9d6cd] bg-[#fffdf8] p-0 text-[#20211e] shadow-xl"
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                <div className="flex items-center justify-between border-b border-[#e1dfd7] px-4 py-3.5">
                     <div>
-                        <h3 className="font-semibold text-white">Notifications</h3>
+                        <h3 className="font-semibold text-[#20211e]">Notifications</h3>
                         {unreadCount > 0 && (
-                            <p className="text-xs text-zinc-500">{unreadCount} unread</p>
+                            <p className="text-xs text-[#77766e]">{unreadCount} unread</p>
                         )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -120,7 +120,7 @@ export default function NotificationsCenter() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={markAllAsRead}
-                                className="h-7 text-xs text-zinc-400 hover:text-white"
+                                className="h-7 text-xs text-[#575750]"
                             >
                                 Mark all read
                             </Button>
@@ -130,7 +130,7 @@ export default function NotificationsCenter() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={clearAll}
-                                className="h-7 text-xs text-zinc-400 hover:text-white"
+                                className="h-7 text-xs text-[#575750]"
                             >
                                 Clear all
                             </Button>
@@ -142,8 +142,9 @@ export default function NotificationsCenter() {
                 <div className="max-h-96 overflow-y-auto">
                     {notifications.length === 0 ? (
                         <div className="py-12 text-center">
-                            <Bell className="w-8 h-8 text-zinc-700 mx-auto mb-2" />
-                            <p className="text-sm text-zinc-500">No notifications</p>
+                            <span className="dashboard-icon mx-auto mb-3 h-10 w-10"><Bell className="h-4 w-4" /></span>
+                            <p className="text-sm font-semibold text-[#20211e]">No notifications yet</p>
+                            <p className="mt-1 text-xs text-[#77766e]">Connected alerts will appear here when an event needs your attention.</p>
                         </div>
                     ) : (
                         notifications.map((notification) => {
@@ -152,8 +153,8 @@ export default function NotificationsCenter() {
                                 <div
                                     key={notification.id}
                                     className={cn(
-                                        "px-4 py-3 border-b border-white/5 last:border-0 transition-colors hover:bg-white/[0.02]",
-                                        !notification.read && "bg-white/[0.02]"
+                                        "border-b border-[#e1dfd7] px-4 py-3 transition-colors last:border-0 hover:bg-[#f5f3ee]",
+                                        !notification.read && "bg-[#e8eee4]"
                                     )}
                                 >
                                     <div className="flex gap-3">
@@ -162,7 +163,7 @@ export default function NotificationsCenter() {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-start justify-between gap-2 mb-1">
-                                                <h4 className="text-sm font-medium text-white">
+                                                <h4 className="text-sm font-medium text-[#20211e]">
                                                     {notification.title}
                                                 </h4>
                                                 {!notification.read && (
@@ -174,11 +175,11 @@ export default function NotificationsCenter() {
                                                     </button>
                                                 )}
                                             </div>
-                                            <p className="text-xs text-zinc-400 mb-2">
+                                            <p className="mb-2 text-xs text-[#575750]">
                                                 {notification.message}
                                             </p>
                                             <div className="flex items-center justify-between">
-                                                <span className="text-xs text-zinc-600">
+                                                <span className="text-xs text-[#77766e]">
                                                     {notification.timestamp}
                                                 </span>
                                                 {notification.actionLabel && (

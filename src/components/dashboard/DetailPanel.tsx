@@ -34,7 +34,7 @@ export default function DetailPanel({
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+                        className="fixed inset-0 z-50 bg-[#20211e]/45 backdrop-blur-[2px]"
                     />
 
                     {/* Panel */}
@@ -43,23 +43,24 @@ export default function DetailPanel({
                         animate={{ x: 0 }}
                         exit={{ x: "100%" }}
                         transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                        className={`fixed right-0 top-0 bottom-0 ${widthClasses[width]} w-full bg-[#0d0d0f] border-l border-white/[0.06] z-50 flex flex-col shadow-2xl`}
+                        className={`fixed bottom-0 right-0 top-0 ${widthClasses[width]} z-50 flex w-full flex-col border-l border-[#d9d6cd] bg-[#fffdf8] shadow-[-18px_0_48px_rgba(32,33,30,.12)]`}
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] bg-[#09090b]/50 backdrop-blur-xl">
-                            <h2 className="text-lg font-semibold text-white tracking-tight">
+                        <div className="flex min-h-[72px] items-center justify-between border-b border-[#d9d6cd] bg-[#f5f3ee]/95 px-5 backdrop-blur-xl sm:px-6">
+                            <div><p className="dashboard-eyebrow">Details</p><h2 className="text-lg font-semibold tracking-[-.035em] text-[#20211e]">
                                 {title}
-                            </h2>
+                            </h2></div>
                             <button
                                 onClick={onClose}
-                                className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/[0.08] transition-all duration-200"
+                                className="flex h-9 w-9 items-center justify-center rounded-full border border-[#d9d6cd] bg-[#fffdf8] text-[#77766e] transition-colors hover:border-[#b9d9cc] hover:text-[#20211e]"
+                                aria-label="Close details"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
                         {/* Scrollable Content */}
-                        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                        <div className="flex-1 space-y-6 overflow-y-auto p-5 sm:p-6">
                             {children}
                         </div>
                     </motion.div>

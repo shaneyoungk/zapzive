@@ -1,0 +1,31 @@
+<svg width="620" height="300" viewBox="0 0 620 300" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Audit trace visual</title>
+  <desc id="desc">A document record connected to approval and reconciliation states.</desc>
+  <defs>
+    <linearGradient id="trace" x1="88" y1="78" x2="526" y2="230" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#087F5B"/>
+      <stop offset="1" stop-color="#11A879"/>
+    </linearGradient>
+  </defs>
+  <path d="M92 226C149 178 198 164 254 174C327 187 347 231 410 218C466 207 480 143 530 76" stroke="#CDD8C8" stroke-width="2"/>
+  <path d="M92 226C149 178 198 164 254 174C327 187 347 231 410 218C466 207 480 143 530 76" stroke="url(#trace)" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 9"/>
+  <g>
+    <rect x="40" y="186" width="104" height="68" rx="14" fill="#FFFDF8" stroke="#CDD8C8"/>
+    <path d="M64 207H119M64 219H108M64 231H96" stroke="#77766E" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="122" cy="231" r="5" fill="#11A879"/>
+  </g>
+  <g>
+    <circle cx="254" cy="174" r="34" fill="#E8F4EF" stroke="#087F5B" stroke-width="2"/>
+    <path d="M242 175L251 184L268 164" stroke="#087F5B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g>
+    <rect x="354" y="190" width="112" height="58" rx="14" fill="#20211E" stroke="#087F5B"/>
+    <path d="M379 210H440M379 222H421" stroke="#B9D9CC" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="443" cy="222" r="5" fill="#11A879"/>
+  </g>
+  <g>
+    <circle cx="530" cy="76" r="34" fill="#E8F4EF" stroke="#087F5B" stroke-width="2"/>
+    <path d="M530 58V94M512 76H548" stroke="#087F5B" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="530" cy="76" r="8" fill="#11A879"/>
+  </g>
+</svg>

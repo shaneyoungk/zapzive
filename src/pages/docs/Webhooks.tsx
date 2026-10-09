@@ -1,107 +1,89 @@
+import { Check, LockKeyhole, RefreshCcw, ShieldCheck } from "lucide-react";
 import { CodeWindow } from "@/components/docs/CodeWindow";
 import { DocCallout } from "@/components/docs/DocCallout";
-import { Badge } from "@/components/ui/badge";
-import { Webhook, ShieldCheck, RefreshCcw, Bell, AlertTriangle } from "lucide-react";
+
+const verificationCode = [
+  "import crypto from \"node:crypto\";",
+  "",
+  "function verify(rawBody, signature, secret) {",
+  "  const expected = crypto.createHmac(\"sha256\", secret)",
+  "    .update(rawBody)",
+  "    .digest(\"hex\");",
+  "  return crypto.timingSafeEqual(",
+  "    Buffer.from(expected),",
+  "    Buffer.from(signature || \"\"),",
+  "  );",
+  "}",
+].join("\n");
 
 export default function Webhooks() {
-    return (
-        <div className="space-y-16 max-w-5xl pb-20">
-            <section className="space-y-6">
-                <h1 className="text-5xl font-bold text-white tracking-tight">Webhooks</h1>
-                <p className="text-xl text-zinc-400 leading-relaxed max-w-3xl">
-                    zapzive uses webhooks to notify your application when an event happens
-                    in your account. Webhooks are essential for asynchronous updates like
-                    payment clearing and KYC verification.
-                </p>
-            </section>
+  return (
+    <div className="pb-24">
+      <header className="border-b border-[#d9d6cd] pb-12">
+        <p className="mono-label text-[#087f5b]">Events · Provider integration</p>
+        <h1 className="mt-5 max-w-4xl text-5xl sm:text-6xl">Receive events without trusting the network.</h1>
+        <p className="mt-6 max-w-2xl text-lg leading-8 text-[#575750]">
+          Verify the raw request, deduplicate the event, acknowledge quickly, and process the business action from a durable queue.
+        </p>
+      </header>
 
-            <DocCallout type="info" title="Push vs Poll">
-                Webhooks allow you to avoid frequent API polling. Instead of asking "is this paid?",
-                zapzive will proactively "push" the data to your server the moment it happens.
-            </DocCallout>
+      <DocCallout type="warning" title="Sandbox availability">
+        The current sandbox persists webhook configuration and encrypts signing secrets, but it does not yet run a provider-backed delivery worker. Treat the examples below as the production receiver contract to implement and test before enabling live events.
+      </DocCallout>
 
-            {/* Architecture Section */}
-            <section className="space-y-10">
-                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                    <ShieldCheck className="w-6 h-6 text-emerald-400" /> Signature Verification
-                </h2>
-                <p className="text-zinc-400 leading-relaxed">
-                    To ensure a request actually came from zapzive, you must verify the
-                    <code className="text-emerald-400 mx-1">zapzive-Signature</code> header.
-                    This header contains an HMAC hex digest generated using your Webhook Secret.
-                </p>
+      <section className="mt-14 grid gap-4 md:grid-cols-3" aria-label="Webhook handling sequence">
+        <Step number="01" icon={LockKeyhole} title="Verify" copy="Use the raw body and constant-time HMAC comparison." />
+        <Step number="02" icon={RefreshCcw} title="Deduplicate" copy="Store the event ID with a unique constraint before work." />
+        <Step number="03" icon={ShieldCheck} title="Acknowledge" copy="Return 2xx quickly, then process through a durable worker." />
+      </section>
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <CodeWindow
-                        language="typescript"
-                        title="Node.js (Express)"
-                        code={`const secret = process.env.WEBHOOK_SECRET;\n\napp.post('/webhooks', (req, res) => {\n  const sig = req.headers['zapzive-signature'];\n  const event = client.webhooks.constructEvent(req.body, sig, secret);\n\n  if (event.type === 'payout.paid') {\n    // Handle success\n  }\n\n  res.json({received: true});\n});`}
-                    />
-                    <CodeWindow
-                        language="python"
-                        title="Python (Flask)"
-                        code={`@app.route('/webhooks', methods=['POST'])\ndef webhook():\n    sig = request.headers.get('zapzive-Signature')\n    try:\n        event = zapzive.Webhook.construct_event(\n            request.data, sig, secret\n        )\n    except Exception as e:\n        return "Invalid signature", 400\n\n    return "OK"`}
-                    />
-                </div>
-            </section>
-
-            <DocCallout type="mistake" title="Vulnerable Endpoints">
-                Never skip signature verification in production. Attackers can spoof
-                payment notifications to trick your system into releasing goods without payment.
-            </DocCallout>
-
-            {/* Event Catalog */}
-            <section className="space-y-8 border-t border-white/5 pt-16">
-                <h2 className="text-2xl font-bold text-white">Event Catalog</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <EventCard type="payout.paid" desc="Sent when funds settle in the recipient bank." />
-                    <EventCard type="payout.failed" desc="Sent if a transfer is rejected (e.g. invalid IBAN)." />
-                    <EventCard type="kyc.verified" desc="Sent when a user passes identity verification." />
-                    <EventCard type="kyc.rejected" desc="Sent if documents require manual resubmission." />
-                    <EventCard type="swap.completed" desc="Sent when an FX conversion clears." />
-                    <EventCard type="contract.funded" desc="Sent when escrow funds are secured." />
-                </div>
-            </section>
-
-            {/* Best Practices */}
-            <section className="space-y-12">
-                <h2 className="text-3xl font-bold text-white text-center">Robustness & Retries</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="p-8 rounded-3xl bg-white/[0.02] border border-white/5 space-y-4">
-                        <div className="flex items-center gap-3">
-                            <RefreshCcw className="w-5 h-5 text-blue-400" />
-                            <h3 className="font-bold text-white">24-Hour Retry Loop</h3>
-                        </div>
-                        <p className="text-sm text-zinc-500 leading-relaxed">
-                            If your server is down, we retry with exponential backoff
-                            (1m, 5m, 1h, etc.) for up to 24 hours. Your endpoint <span className="font-bold text-white uppercase italic">must</span> return
-                            a 2xx response immediately.
-                        </p>
-                    </div>
-
-                    <div className="p-8 rounded-3xl bg-white/[0.02] border border-white/5 space-y-4">
-                        <div className="flex items-center gap-3">
-                            <Bell className="w-5 h-5 text-amber-400" />
-                            <h3 className="font-bold text-white">Event Idempotency</h3>
-                        </div>
-                        <p className="text-sm text-zinc-500 leading-relaxed">
-                            Webhooks may occasionally be delivered more than once.
-                            Always store the `id` of events you have processed and
-                            ignore duplicates to avoid double-processing.
-                        </p>
-                    </div>
-                </div>
-            </section>
+      <section className="mt-16 grid gap-10 lg:grid-cols-[.8fr_1.2fr] lg:items-start">
+        <div>
+          <p className="mono-label text-[#087f5b]">Signature verification</p>
+          <h2 className="mt-3 text-3xl">Verify the raw body first.</h2>
+          <p className="mt-4 text-base leading-7 text-[#575750]">
+            Never parse and re-serialize JSON before checking the signature. Keep the secret outside source control, reject stale timestamps, and fail closed when the header is missing.
+          </p>
         </div>
-    );
+        <CodeWindow showLineNumbers language="typescript" title="verify-webhook.ts" code={verificationCode} />
+      </section>
+
+      <section className="mt-16 border-t border-[#d9d6cd] pt-12">
+        <p className="mono-label text-[#087f5b]">Receiver checklist</p>
+        <h2 className="mt-3 text-3xl">Make retries safe.</h2>
+        <div className="mt-7 grid gap-3 md:grid-cols-2">
+          {[
+            "Persist event ID, type, received time, and processing state.",
+            "Return 2xx only after the event is durably accepted.",
+            "Retry failed work with bounded exponential backoff.",
+            "Keep provider references and request IDs in reconciliation records.",
+            "Do not release escrow or mark payroll paid from an unverified event.",
+            "Alert when delivery attempts exhaust or signatures fail.",
+          ].map((item) => (
+            <div key={item} className="flex items-start gap-3 rounded-xl border border-[#d9d6cd] bg-[#fffdf8] p-4 text-sm leading-6 text-[#575750]">
+              <Check size={15} className="mt-1 shrink-0 text-[#087f5b]" />
+              {item}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <DocCallout type="info" title="Planned event families">
+        When the delivery adapter is enabled, event names should remain resource-oriented: <code>remittance.completed</code>, <code>remittance.failed</code>, <code>payroll.batch.completed</code>, <code>escrow.milestone.released</code>, and <code>compliance.review.updated</code>. Pin the contract before shipping consumers.
+      </DocCallout>
+    </div>
+  );
 }
 
-function EventCard({ type, desc }: { type: string; desc: string }) {
-    return (
-        <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors space-y-2">
-            <code className="text-xs text-emerald-400 font-mono font-bold tracking-tight">{type}</code>
-            <p className="text-[11px] text-zinc-500 leading-relaxed">{desc}</p>
-        </div>
-    );
+function Step({ number, icon: Icon, title, copy }: { number: string; icon: typeof LockKeyhole; title: string; copy: string }) {
+  return (
+    <article className="rounded-2xl border border-[#d9d6cd] bg-[#fffdf8] p-5">
+      <div className="flex items-center justify-between">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#cdd8c8] bg-[#e8eee4] text-[#087f5b]"><Icon size={17} /></span>
+        <span className="font-mono text-[10px] font-semibold text-[#087f5b]">{number}</span>
+      </div>
+      <h3 className="mt-6 text-lg">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-[#575750]">{copy}</p>
+    </article>
+  );
 }
-

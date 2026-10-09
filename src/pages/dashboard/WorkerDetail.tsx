@@ -67,9 +67,14 @@ export default function WorkerDetail() {
                 <div className="lg:col-span-1 space-y-6">
                     <div className="premium-card p-8 flex flex-col items-center text-center">
                         <div className="relative mb-4">
-                            <img src={worker.avatar} alt={worker.name} className="w-24 h-24 rounded-3xl border-2 border-emerald-500/20" />
-                            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-zinc-950">
-                                <ShieldCheck className="w-3.5 h-3.5 text-black" />
+                            <div
+                                aria-hidden="true"
+                                className="flex h-24 w-24 items-center justify-center rounded-3xl border border-[#cdd8c8] bg-[#e8eee4] text-2xl font-semibold tracking-wide text-[#087f5b]"
+                            >
+                                {worker.name.split(" ").map((part) => part[0]).slice(0, 2).join("")}
+                            </div>
+                            <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#fffdf8] bg-[#12b886]">
+                                <ShieldCheck className="h-3.5 w-3.5 text-white" />
                             </div>
                         </div>
                         <h2 className="text-xl font-bold text-white">{worker.name}</h2>

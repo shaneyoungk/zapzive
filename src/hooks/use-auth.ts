@@ -1,10 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import axios from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import apiClient from '@/lib/api-client';
 
 interface SignupData {
     email: string;
@@ -34,8 +32,7 @@ export function useSignup() {
 
     return useMutation({
         mutationFn: async (data: SignupData) => {
-            const response = await axios.post(`${API_BASE_URL}/api/auth/signup`, data);
-            return response.data;
+            return apiClient.signup(data);
         },
         onSuccess: (data) => {
             signup(data);
@@ -55,8 +52,7 @@ export function useLogin() {
 
     return useMutation({
         mutationFn: async (data: LoginData) => {
-            const response = await axios.post(`${API_BASE_URL}/api/auth/login`, data);
-            return response.data;
+            return apiClient.login(data);
         },
         onSuccess: (data) => {
             login(data);
@@ -73,8 +69,7 @@ export function useLogin() {
 export function useVerifyEmail() {
     return useMutation({
         mutationFn: async (email: string) => {
-            const response = await axios.post(`${API_BASE_URL}/api/auth/verify-email`, { email });
-            return response.data;
+            return apiClient.verifyEmail(email);
         },
         onSuccess: (data) => {
             toast.success('Verification code sent to your email');
@@ -92,8 +87,7 @@ export function useCompleteOnboarding() {
 
     return useMutation({
         mutationFn: async (data: OnboardingData) => {
-            const response = await axios.post(`${API_BASE_URL}/api/auth/complete-onboarding`, data);
-            return response.data;
+            return apiClient.completeOnboarding(data);
         },
         onSuccess: (data) => {
             updateCompany(data);
@@ -112,7 +106,12 @@ export function useLogout() {
     const queryClient = useQueryClient();
     const { logout } = useAuth();
 
-    return () => {
+    return async () => {
+        try {
+            await apiClient.logout();
+        } catch {
+            // Local cleanup must still happen if the network is unavailable.
+        }
         logout();
         queryClient.clear();
         toast.success('Logged out successfully');

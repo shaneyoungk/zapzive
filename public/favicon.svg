@@ -1,9 +1,28 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="triangleGradient" x1="12" y1="20" x2="52" y2="52" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#10b981" />
-      <stop offset="100%" stop-color="#059669" />
+    <linearGradient id="edge" x1="7" y1="7" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#06352f"/>
+      <stop offset=".52" stop-color="#0a1619"/>
+      <stop offset="1" stop-color="#00bd88"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(52 11) rotate(131) scale(62)">
+      <stop stop-color="#14e3a3" stop-opacity=".76"/>
+      <stop offset=".37" stop-color="#08715d" stop-opacity=".42"/>
+      <stop offset="1" stop-color="#060c10" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mark" x1="18" y1="22" x2="43" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff"/>
+      <stop offset="1" stop-color="#e1f6ef"/>
+    </linearGradient>
+    <linearGradient id="green" x1="20" y1="20" x2="45" y2="49" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00b985"/>
+      <stop offset="1" stop-color="#29e5aa"/>
     </linearGradient>
   </defs>
-  <path d="M12 20H52L32 52L12 20Z" fill="url(#triangleGradient)"/>
+  <rect x="3" y="3" width="58" height="58" rx="14" fill="#070d10" stroke="url(#edge)" stroke-width="1.5"/>
+  <rect x="4" y="4" width="56" height="56" rx="13" fill="url(#glow)"/>
+  <path d="M18 22.5H40.5L24.2 40H42.5V46.5H17L33.3 29H18V22.5Z" fill="url(#mark)"/>
+  <circle cx="43" cy="20.4" r="4.2" fill="url(#green)"/>
+  <circle cx="20.5" cy="47.3" r="2.3" fill="url(#green)"/>
+  <rect x="24.7" y="45" width="20.7" height="4.6" rx="2.3" fill="url(#green)"/>
 </svg>

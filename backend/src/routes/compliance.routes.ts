@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authMiddleware, AuthRequest } from '../middleware/auth.middleware';
+import { ApiError, parseBoundedLimit, requiredText, sendApiError } from '../lib/security';
 
 const router = Router();
 
@@ -13,6 +14,10 @@ router.get('/items', async (req: AuthRequest, res: Response) => {
         const type = req.query.type as string;
         const status = req.query.status as string;
         const riskLevel = req.query.riskLevel as string;
+        const limit = parseBoundedLimit(req.query.limit, 50, 100);
+        if (type && !['kyc', 'aml', 'sanctions', 'transaction'].includes(type)) throw new ApiError(422, 'INVALID_COMPLIANCE_TYPE', 'Unsupported compliance type.');
+        if (status && !['approved', 'pending', 'flagged', 'rejected'].includes(status)) throw new ApiError(422, 'INVALID_COMPLIANCE_STATUS', 'Unsupported compliance status.');
+        if (riskLevel && !['low', 'medium', 'high'].includes(riskLevel)) throw new ApiError(422, 'INVALID_RISK_LEVEL', 'Unsupported risk level.');
 
         const where: any = { companyId: req.companyId };
         if (type) where.type = type;
@@ -21,19 +26,21 @@ router.get('/items', async (req: AuthRequest, res: Response) => {
 
         const items = await prisma.complianceItem.findMany({
             where,
+            take: limit,
             orderBy: { date: 'desc' }
         });
 
         res.json(items);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch compliance items' });
+        return sendApiError(res, error, 'Failed to fetch compliance items');
     }
 });
 
 // POST /api/compliance/kyc - Submit KYC
 router.post('/kyc', async (req: AuthRequest, res: Response) => {
     try {
-        const { entity, details } = req.body;
+        const entity = requiredText(req.body?.entity, 'entity', 160);
+        const details = requiredText(req.body?.details, 'details', 2000);
 
         const kycItem = await prisma.complianceItem.create({
             data: {
@@ -46,41 +53,34 @@ router.post('/kyc', async (req: AuthRequest, res: Response) => {
             }
         });
 
-        // Simulate KYC verification
-        setTimeout(async () => {
-            await prisma.complianceItem.update({
-                where: { id: kycItem.id },
-                data: { status: 'approved' }
-            });
-        }, 5000);
-
         res.status(201).json(kycItem);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to submit KYC' });
+        return sendApiError(res, error, 'Failed to submit KYC');
     }
 });
 
 // GET /api/compliance/kyc/:id - Get KYC status
 router.get('/kyc/:id', async (req: AuthRequest, res: Response) => {
     try {
-        const item = await prisma.complianceItem.findUnique({
-            where: { id: req.params.id }
+        const item = await prisma.complianceItem.findFirst({
+            where: { id: req.params.id, companyId: req.companyId }
         });
 
         if (!item) {
-            return res.status(404).json({ error: 'KYC item not found' });
+            return res.status(404).json({ error: 'KYC item not found', code: 'NOT_FOUND' });
         }
 
         res.json(item);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch KYC status' });
+        return sendApiError(res, error, 'Failed to fetch KYC status');
     }
 });
 
 // POST /api/compliance/aml - Run AML check
 router.post('/aml', async (req: AuthRequest, res: Response) => {
     try {
-        const { entity, details } = req.body;
+        const entity = requiredText(req.body?.entity, 'entity', 160);
+        const details = requiredText(req.body?.details, 'details', 2000);
 
         const amlItem = await prisma.complianceItem.create({
             data: {
@@ -93,39 +93,31 @@ router.post('/aml', async (req: AuthRequest, res: Response) => {
             }
         });
 
-        // Simulate AML check
-        setTimeout(async () => {
-            const riskLevel = Math.random() > 0.8 ? 'high' : 'low';
-            const status = riskLevel === 'high' ? 'flagged' : 'approved';
-
-            await prisma.complianceItem.update({
-                where: { id: amlItem.id },
-                data: { status, riskLevel }
-            });
-        }, 3000);
-
         res.status(201).json(amlItem);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to run AML check' });
+        return sendApiError(res, error, 'Failed to run AML check');
     }
 });
 
 // GET /api/compliance/reports - Compliance reports
 router.get('/reports', async (req: AuthRequest, res: Response) => {
     try {
-        const startDate = req.query.startDate as string;
-        const endDate = req.query.endDate as string;
+        const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : undefined;
+        const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : undefined;
 
         const where: any = { companyId: req.companyId };
         if (startDate && endDate) {
-            where.date = {
-                gte: new Date(startDate),
-                lte: new Date(endDate)
-            };
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+                return res.status(422).json({ error: 'Invalid compliance report date range', code: 'INVALID_DATE_RANGE' });
+            }
+            where.date = { gte: start, lte: end };
         }
 
         const items = await prisma.complianceItem.findMany({
             where,
+            take: parseBoundedLimit(req.query.limit, 100, 200),
             orderBy: { date: 'desc' }
         });
 
@@ -150,7 +142,7 @@ router.get('/reports', async (req: AuthRequest, res: Response) => {
 
         res.json({ summary, items });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to generate compliance reports' });
+        return sendApiError(res, error, 'Failed to generate compliance reports');
     }
 });
 

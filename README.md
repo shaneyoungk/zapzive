@@ -1,39 +1,39 @@
-# zapzive (Global Pay Flow)
+# Zapzive
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg) ![Status](https://img.shields.io/badge/status-Active-success.svg) ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white) ![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB) ![Node.js](https://img.shields.io/badge/Node.js-43853D?style=flat&logo=node.js&logoColor=white)
 
-**zapzive** is an enterprise-grade financial operations platform engineered for the future of global business. It bridges the gap between traditional finance and blockchain technology, offering a unified dashboard for global liquidity management, automated payroll, milestone-based escrow, and cross-border remittances.
+**Zapzive** is a financial operations sandbox for evaluating global liquidity workflows, payroll, milestone escrow, and cross-border remittances with a clear audit trail.
 
-Designed for scalability and security, zapzive empowers organizations to manage multi-chain treasury assets alongside fiat operations with bank-grade compliance and real-time analytics.
+The current repository is designed to make the product behavior testable and honest: money movement is persisted as sandbox records, live providers are not connected, and production readiness requires the controls described in the documentation.
 
 ---
 
 ## 🚀 Key Capabilities
 
 ### 🌐 Unified Treasury Management
-- **Multi-Chain Asset Control:** Manage portfolios across Ethereum, Polygon, Arbitrum, and Optimism from a single view.
-- **Real-Time Analytics:** Live liquidity position tracking, FX rates, and capital allocation breakdowns.
-- **Instant Swaps:** Integrated DEX functionality for seamless asset exchange.
+- **Sandbox Asset Control:** Inspect seeded test assets and company-scoped balances from one view.
+- **Derived Analytics:** Reconcile persisted transactions, payroll, escrow, and remittance records.
+- **Sandbox Swaps:** Exercise atomic balance and transaction updates with explicit test references.
 
-### 💸 Global Payroll Engine
-- **Batch Processing:** Execute payments for hundreds of workers simultaneously with dual-approval workflows.
-- **Hybrid Payouts:** Support for crypto wallets and traditional bank transfers.
-- **Worker Management:** comprehensive profiles with KYC status and payment history.
+### Global Payroll Engine
+- **Batch Processing:** Create, approve, and execute USDC test batches with idempotent state transitions.
+- **Worker Management:** Maintain company-scoped profiles, eligibility status, and payment history.
+- **Provider boundary:** No live bank, wallet custody, tax, or payroll provider is connected.
 
-### 🤝 Secure Escrow Contracts
-- **Milestone-Based Releases:** Funds are locked in smart contracts and released only upon verified deliverables.
-- **Dispute Resolution:** Built-in arbitration workflows to handle disagreements fairly.
-- **Multi-Signature Security:** Enhanced protection for high-value contracts.
+### Secure Escrow Contracts
+- **Milestone-Based Releases:** Test locked balances and exact milestone releases in the sandbox ledger.
+- **Bid Workflow:** Collect public bids and accept one through an authorized role.
+- **Provider boundary:** No smart contract, custody, arbitration, or multisignature provider is connected.
 
-### 🌍 Cross-Border Remittance
-- **Global Reach:** Send money to 180+ countries via Bank Transfer, Mobile Money, or Cash Pickup.
-- **Competitive FX:** Real-time transparent exchange rates with low fees.
-- **Live Tracking:** End-to-end visibility of transfer status from initiation to delivery.
+### Cross-Border Remittance
+- **Sandbox corridors:** Test supported source assets, destination currencies, recipients, and delivery-method validation.
+- **Explicit test rates:** Quotes return a short-lived sandbox calculation; the create route recalculates it server-side.
+- **Reconciliation:** Remittance and treasury transaction records share a sandbox reference.
 
-### 🛡️ Enterprise Compliance
-- **Integrated KYC/AML:** Automated identity verification and risk screening.
-- **Audit Trails:** Immutable logs for every transaction and administrative action.
-- **Role-Based Access:** Granular permissions for Admins, Managers, and Operators.
+### Enterprise Compliance
+- **Review records:** Create and inspect sandbox KYC/AML items without claiming provider verification.
+- **Audit Trails:** Record money-moving and administrative actions with request context.
+- **Role-Based Access:** Separate owner, admin, approver, operator, developer, and member capabilities.
 
 ---
 
@@ -49,9 +49,9 @@ Designed for scalability and security, zapzive empowers organizations to manage 
 
 ### Backend
 - **Runtime:** [Node.js](https://nodejs.org/) & [Express](https://expressjs.com/)
-- **Database:** PostgreSQL with [Prisma ORM](https://www.prisma.io/)
-- **Authentication:** JWT-based session management with 2FA support
-- **Blockchain Integration:** Web3.js / Ethers.js for smart contract interaction
+- **Database:** SQLite with [Prisma ORM](https://www.prisma.io/) for the local sandbox
+- **Authentication:** HttpOnly cookie sessions, scoped test API keys, CSRF protection, and server-side session revocation
+- **Provider integration:** Persisted sandbox settlement only; no live bank, FX, blockchain, queue, or webhook provider is configured
 
 ---
 
@@ -60,7 +60,7 @@ Designed for scalability and security, zapzive empowers organizations to manage 
 ### Prerequisites
 - Node.js > v18.0.0
 - npm or yarn or bun
-- PostgreSQL database
+- Node.js 18 or newer
 
 ### Installation
 
@@ -81,8 +81,8 @@ Designed for scalability and security, zapzive empowers organizations to manage 
    ```
 
 3. **Environment Setup**
-   - Copy `.env.example` to `.env` in both root and backend directories.
-   - Configure your database URL and API keys in the `.env` files.
+   - Copy `.env.example` to `.env` in both root and backend directories when available.
+   - The local backend defaults to `DATABASE_URL="file:./dev.db"`; use a managed transactional database before production.
 
 4. **Run the Application**
    ```bash

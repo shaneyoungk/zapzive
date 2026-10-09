@@ -1,93 +1,166 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import apiClient, { AUTH_STORAGE_KEY } from '@/lib/api-client';
+
+export interface AuthUser {
+    id: string;
+    email: string;
+    name: string;
+    role?: string;
+    status?: string;
+    companyId?: string;
+}
+
+export interface AuthCompany {
+    id: string;
+    name: string;
+    email?: string;
+    country?: string;
+    isTestMode?: boolean;
+    status?: string;
+}
 
 interface AuthContextType {
-    user: any;
-    company: any;
+    user: AuthUser | null;
+    company: AuthCompany | null;
     token: string | null;
     isAuthenticated: boolean;
-    login: (data: any) => void;
-    signup: (data: any) => void;
+    isHydrated: boolean;
+    login: (data: { user: AuthUser; company: AuthCompany; token?: string }) => void;
+    signup: (data: { user: AuthUser; company: AuthCompany; token?: string }) => void;
     logout: () => void;
-    updateCompany: (data: any) => void;
+    updateCompany: (data: AuthCompany) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function clearStoredAuth() {
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('company');
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('company');
+}
+
+function persistAuth(data: { user: AuthUser; company: AuthCompany; token?: string }) {
+    sessionStorage.setItem(AUTH_STORAGE_KEY, data.token || 'cookie');
+    sessionStorage.setItem('user', JSON.stringify(data.user));
+    sessionStorage.setItem('company', JSON.stringify(data.company));
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<any>(null);
-    const [company, setCompany] = useState<any>(null);
-    const [token, setToken] = useState<string | null>(localStorage.getItem('auth_token'));
+    const [user, setUser] = useState<AuthUser | null>(null);
+    const [company, setCompany] = useState<AuthCompany | null>(null);
+    const [token, setToken] = useState<string | null>(null);
+    const [isHydrated, setIsHydrated] = useState(false);
+    const authChannel = useRef<BroadcastChannel | null>(null);
 
     useEffect(() => {
-        const storedUser = localStorage.getItem('user');
-        const storedCompany = localStorage.getItem('company');
+        let cancelled = false;
+        let hasStoredSession = false;
+
         try {
-            if (storedUser) setUser(JSON.parse(storedUser));
-            if (storedCompany) setCompany(JSON.parse(storedCompany));
+            const storedToken = sessionStorage.getItem(AUTH_STORAGE_KEY);
+            const storedUser = sessionStorage.getItem('user');
+            const storedCompany = sessionStorage.getItem('company');
+            if (storedToken && storedUser && storedCompany) {
+                hasStoredSession = true;
+                setToken(storedToken);
+                setUser(JSON.parse(storedUser) as AuthUser);
+                setCompany(JSON.parse(storedCompany) as AuthCompany);
+
+                // The HttpOnly cookie is the source of truth. Revalidate it on
+                // boot so revoked sessions and changed organization access do
+                // not render a stale dashboard.
+                void apiClient.getSession()
+                    .then((session) => {
+                        if (cancelled) return;
+                        setUser(session.user as AuthUser);
+                        setCompany(session.company as AuthCompany);
+                        persistAuth({ user: session.user, company: session.company, token: storedToken });
+                    })
+                    .catch(() => {
+                        if (cancelled) return;
+                        clearStoredAuth();
+                        setToken(null);
+                        setUser(null);
+                        setCompany(null);
+                    })
+                    .finally(() => {
+                        if (!cancelled) setIsHydrated(true);
+                    });
+            } else {
+                clearStoredAuth();
+            }
         } catch {
+            clearStoredAuth();
+            setToken(null);
             setUser(null);
             setCompany(null);
-            localStorage.removeItem('user');
-            localStorage.removeItem('company');
-            localStorage.removeItem('auth_token');
-            setToken(null);
+            setIsHydrated(true);
+        } finally {
+            if (!hasStoredSession) setIsHydrated(true);
         }
+
+        return () => { cancelled = true; };
     }, []);
 
-    const login = (data: any) => {
-        const { user, company, token } = data;
-        setUser(user);
-        setCompany(company);
-        setToken(token);
-        localStorage.setItem('auth_token', token);
-        localStorage.setItem('user', JSON.stringify(user));
-        localStorage.setItem('company', JSON.stringify(company));
-    };
+    useEffect(() => {
+        if (typeof BroadcastChannel === 'undefined') return;
+        const channel = new BroadcastChannel('zapzive-auth');
+        authChannel.current = channel;
+        channel.onmessage = (event) => {
+            if (event.data?.type === 'logout') {
+                setUser(null);
+                setCompany(null);
+                setToken(null);
+                clearStoredAuth();
+            }
+        };
+        return () => {
+            channel.close();
+            authChannel.current = null;
+        };
+    }, []);
 
-    const signup = (data: any) => {
-        const { user, company, token } = data;
-        setUser(user);
-        setCompany(company);
-        setToken(token);
-        localStorage.setItem('auth_token', token);
-        localStorage.setItem('user', JSON.stringify(user));
-        localStorage.setItem('company', JSON.stringify(company));
+    const login = (data: { user: AuthUser; company: AuthCompany; token?: string }) => {
+        setUser(data.user);
+        setCompany(data.company);
+        const sessionToken = data.token || 'cookie';
+        setToken(sessionToken);
+        persistAuth({ ...data, token: sessionToken });
     };
 
     const logout = () => {
         setUser(null);
         setCompany(null);
         setToken(null);
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('company');
+        clearStoredAuth();
+        authChannel.current?.postMessage({ type: 'logout' });
     };
 
-    const updateCompany = (data: any) => {
+    const updateCompany = (data: AuthCompany) => {
         setCompany(data);
-        localStorage.setItem('company', JSON.stringify(data));
+        sessionStorage.setItem('company', JSON.stringify(data));
     };
 
-    return (
-        <AuthContext.Provider value={{
-            user,
-            company,
-            token,
-            isAuthenticated: !!token,
-            login,
-            signup,
-            logout,
-            updateCompany
-        }}>
-            {children}
-        </AuthContext.Provider>
-    );
+    const value = useMemo(() => ({
+        user,
+        company,
+        token,
+        isAuthenticated: Boolean(token && user && company),
+        isHydrated,
+        login,
+        signup: login,
+        logout,
+        updateCompany,
+    }), [user, company, token, isHydrated]);
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
+    if (!context) throw new Error('useAuth must be used within an AuthProvider');
     return context;
 };

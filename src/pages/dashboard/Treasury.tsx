@@ -83,73 +83,25 @@ export default function Treasury() {
 
     return (
         <div className="p-4 lg:p-6 max-w-[1600px] mx-auto space-y-6 animate-fade-in">
-            {/* Header */}
-            <div className="flex items-center justify-end pb-3">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                <div><p className="dashboard-eyebrow">Liquidity</p><h1 className="mt-2 text-3xl">Asset management</h1><p className="mt-2 text-sm text-[#77766e]">Balances, allocation, and conversions across settlement assets.</p></div>
                 <div className="flex gap-2">
-                    <Button onClick={exportPortfolio} disabled={!assets.length} variant="outline" className="h-8 px-4 text-[10px] font-semibold border-zinc-800 bg-[#111] text-zinc-400 hover:text-white hover:bg-[#222]">
-                        <Download className="w-3 h-3 mr-2" />
+                    <Button onClick={exportPortfolio} disabled={!assets.length} variant="outline">
+                        <Download className="h-4 w-4" />
                         Export
                     </Button>
-                    <Button onClick={() => navigate('/dashboard/treasury/transfer')} className="h-8 px-4 text-[10px] font-bold bg-white text-black hover:bg-zinc-200">
-                        <Plus className="w-3 h-3 mr-2" />
-                        Add Funds
+                    <Button onClick={() => navigate('/dashboard/treasury/transfer')}>
+                        <Plus className="h-4 w-4" />
+                        Add funds
                     </Button>
                 </div>
             </div>
 
-            {/* Page Title Section */}
-            <div className="mb-4">
-                <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Asset Management</h1>
-                <p className="text-sm text-zinc-500">Multi-chain portfolio and liquidity operations</p>
-            </div>
-
-            {/* Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Total Value</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 font-mono tabular-nums">
-                        ${(totalValue || 0).toLocaleString()}
-                    </h3>
-                    <p className={`text-xs font-medium ${portfolioChange >= 0 ? 'text-emerald-400' : 'text-red-500'}`}>
-                        {portfolioChange >= 0 ? '+' : ''}{portfolioChange.toFixed(2)}% 24h
-                    </p>
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Stablecoins</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 font-mono tabular-nums">
-                        ${(stablecoinsValue || 0).toLocaleString()}
-                    </h3>
-                    <p className="text-xs text-zinc-500">
-                        {totalValue > 0 ? (stablecoinsValue / totalValue * 100).toFixed(1) : '0.0'}% of portfolio
-                    </p>
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Crypto Assets</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 font-mono tabular-nums">
-                        ${(cryptoValue || 0).toLocaleString()}
-                    </h3>
-                    <p className="text-xs text-zinc-500">
-                        {totalValue > 0 ? (cryptoValue / totalValue * 100).toFixed(1) : '0.0'}% of portfolio
-                    </p>
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Gas Reserves</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 font-mono tabular-nums">
-                        ${gasReserves.toFixed(0)}
-                    </h3>
-                    <p className="text-xs text-emerald-400 font-medium">{gasReserves > 500 ? 'Sufficient' : 'Low'}</p>
-                </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <MetricCard title="Total value" value={`$${(totalValue || 0).toLocaleString()}`} icon={Wallet} trend={{ value: Number(portfolioChange.toFixed(2)), label: "24h" }} />
+                <MetricCard title="Stablecoins" value={`$${(stablecoinsValue || 0).toLocaleString()}`} icon={DollarSign} subtitle={`${totalValue > 0 ? (stablecoinsValue / totalValue * 100).toFixed(1) : "0.0"}% of portfolio`} />
+                <MetricCard title="Other assets" value={`$${(cryptoValue || 0).toLocaleString()}`} icon={TrendingUp} subtitle={`${totalValue > 0 ? (cryptoValue / totalValue * 100).toFixed(1) : "0.0"}% of portfolio`} />
+                <MetricCard title="Gas reserve" value={`$${gasReserves.toFixed(0)}`} icon={Repeat} subtitle={gasReserves > 500 ? "Sufficient" : "Needs funding"} />
             </div>
 
             {/* Portfolio Chart */}
@@ -182,25 +134,25 @@ export default function Treasury() {
                                     <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.5} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#dedbd2" opacity={0.8} />
                             <XAxis
                                 dataKey="date"
-                                stroke="#666"
-                                tick={{ fill: '#888', fontSize: 11 }}
-                                axisLine={{ stroke: '#444' }}
+                                stroke="#77766e"
+                                tick={{ fill: '#77766e', fontSize: 11 }}
+                                axisLine={{ stroke: '#d9d6cd' }}
                             />
                             <YAxis
-                                stroke="#666"
-                                tick={{ fill: '#888', fontSize: 11 }}
-                                axisLine={{ stroke: '#444' }}
+                                stroke="#77766e"
+                                tick={{ fill: '#77766e', fontSize: 11 }}
+                                axisLine={{ stroke: '#d9d6cd' }}
                             />
                             <Tooltip
                                 contentStyle={{
-                                    backgroundColor: "#1a1a1a",
-                                    border: "1px solid #333",
-                                    borderRadius: "8px",
+                                    backgroundColor: "#fffdf8",
+                                    border: "1px solid #d9d6cd",
+                                    borderRadius: "12px",
                                 }}
-                                labelStyle={{ color: "#fff" }}
+                                labelStyle={{ color: "#20211e" }}
                             />
                             <Area
                                 type="monotone"
@@ -230,7 +182,7 @@ export default function Treasury() {
                                 <div key={asset.symbol} className="p-5 hover:bg-[#0f0f0f] transition-colors">
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-zinc-900 border border-[#333] flex items-center justify-center overflow-hidden">
+                                            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl">
                                                 <AssetIcon
                                                     symbol={asset.symbol}
                                                     src={asset.icon}

@@ -1,135 +1,20 @@
-import { motion } from "framer-motion";
-import { ArrowRight, Banknote, Shield, Globe, Wallet, Building, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, Banknote, Building2, Check, LockKeyhole, UsersRound, WalletCards } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { Link } from "react-router-dom";
-import DarkVeil from "@/components/ui/DarkVeil";
 
 const useCases = [
-    {
-        icon: Banknote,
-        title: "Cross-Border B2B",
-        description: "Simplify international vendor payments.",
-        items: ["Instant Settlement", "0.5% Fees", "Invoice Management"],
-        link: "/use-cases/b2b",
-    },
-    {
-        icon: Users,
-        title: "Global Payroll",
-        description: "Pay distributed teams in seconds.",
-        items: ["Batch Payments", "Local Currency", "Auto Compliance"],
-        link: "/use-cases/payroll",
-    },
-    {
-        icon: Shield,
-        title: "Smart Escrow",
-        description: "Trustless milestone payments.",
-        items: ["On-Chain Logic", "Dispute Resolution", "Milestone Gates"],
-        link: "/use-cases/escrow",
-    },
-    {
-        icon: Globe,
-        title: "Remittances",
-        description: "P2P transfers home.",
-        items: ["M-Pesa Integration", "No FX Spreads", "Instant Cashout"],
-        link: "/use-cases/remittances",
-    },
-    {
-        icon: Wallet,
-        title: "On/Off Ramps",
-        description: "Fiat to Crypto conversion.",
-        items: ["Global Banks", "Local APMs", "KYC Integrated"],
-        link: "/use-cases/ramps",
-    },
-    {
-        icon: Building,
-        title: "Treasury",
-        description: "Corporate idle fund management.",
-        items: ["Yield Generation", "Multi-Sig", "Audit Trail"],
-        link: "/use-cases/treasury",
-    },
+  { id: "payroll", icon: UsersRound, title: "Global payroll", audience: "Finance teams paying distributed employees and contractors.", workflow: "Create a batch, validate recipients, route approvals, and retain each payment state.", controls: "Recipient eligibility, role-based approval, idempotent execution, and audit reference.", seen: "A batch timeline with recipient status, amount, currency, and review owner.", simulated: "Test balances and simulated settlement; no live payroll provider is connected." },
+  { id: "marketplace", icon: Building2, title: "Marketplace payouts", audience: "Platforms coordinating payouts to sellers, suppliers, or service providers.", workflow: "Register recipients, create payout instructions, and reconcile completed or failed records.", controls: "Recipient ownership, approval policy, idempotency, and destination state.", seen: "Payout rows grouped by recipient, method, amount, and operational state.", simulated: "Sandbox recipient and payout records only; provider delivery is not live." },
+  { id: "remittance", icon: Banknote, title: "Cross-border remittance", audience: "Teams modelling transfers across currencies and local delivery methods.", workflow: "Create a test quote, select a destination method, review fees, and persist the remittance.", controls: "Quote expiry, corridor context, recipient checks, and reference tracking.", seen: "Source asset, destination currency, test rate, fee, recipient amount, and state.", simulated: "Sandbox quote and local delivery state; no live FX or payout rail is connected." },
+  { id: "treasury", icon: WalletCards, title: "Treasury and stablecoin settlement", audience: "Operators managing balances, reserves, and movement funding decisions.", workflow: "Inspect asset positions, model swaps or transfers, and attach each action to a record.", controls: "Available, reserved, pending, and locked states with scoped access.", seen: "Asset, network, balance state, movement reference, and resulting reconciliation event.", simulated: "Test balances and simulated asset movement; custody and banking are not connected." },
+  { id: "escrow", icon: LockKeyhole, title: "Milestone escrow", audience: "Teams releasing funds against delivery evidence and approvals.", workflow: "Create milestones, attach evidence, review disputes, and release only after approval.", controls: "Milestone state, evidence status, multi-party review, and release lock.", seen: "Contract reference, funded amount, milestone value, evidence, and audit timeline.", simulated: "Sandbox escrow records; no on-chain contract or custody provider is implied." },
 ];
 
 export default function UseCases() {
-    return (
-        <div className="min-h-screen relative selection:bg-accent/30">
-            {/* Dynamic Background */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <DarkVeil
-                    hueShift={160}
-                    noiseIntensity={0.02}
-                    scanlineIntensity={0.05}
-                    speed={0.2}
-                    scanlineFrequency={0.8}
-                    warpAmount={0.15}
-                />
-            </div>
-
-            <div className="relative z-10">
-                <Navbar />
-
-                <main className="pt-40 pb-20">
-                    <div className="container mx-auto px-6 lg:px-8">
-                        <div className="text-center max-w-4xl mx-auto mb-20">
-                            <h1 className="text-5xl lg:text-7xl font-extrabold mb-8 text-zinc-50">
-                                Built for every <br />
-                                <span className="text-gradient">flow</span>
-                            </h1>
-                            <p className="text-xl text-muted-foreground">
-                                From freelancers to enterprise treasuries, zapzive handles it all.
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-20">
-                            {useCases.map((uc, i) => (
-                                <motion.div
-                                    key={uc.title}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: i * 0.1 }}
-                                    className="p-8 rounded-[2rem] bg-gradient-to-br from-[#111] to-black border border-zinc-700/50 shadow-xl hover:border-zinc-500 transition-all group duration-300"
-                                >
-                                    {/* Static Icon Container */}
-                                    <div className="mb-8 relative">
-                                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-zinc-800 to-black border border-zinc-800 flex items-center justify-center relative z-10">
-                                            <uc.icon className="w-8 h-8 text-white" />
-                                        </div>
-                                    </div>
-
-                                    <h3 className="text-2xl font-extrabold mb-2 text-zinc-50">{uc.title}</h3>
-                                    <p className="text-muted-foreground mb-6 font-medium">{uc.description}</p>
-
-                                    <div className="space-y-2 mb-8 border-t border-white/5 pt-6">
-                                        {uc.items.map(item => (
-                                            <div key={item} className="flex items-center gap-2 text-sm font-semibold text-white/80">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-accent" />
-                                                {item}
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <div className="flex items-center text-accent font-bold text-sm">
-                                        Learn more <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </div>
-
-                        <div className="rounded-[3rem] bg-gradient-to-br from-[#111] via-[#050505] to-black border border-accent/20 p-12 text-center shadow-[0_8px_30px_-12px_rgba(0,0,0,0.8)]">
-                            <h2 className="text-3xl font-extrabold mb-6 text-zinc-50">Ready to modernize your payments?</h2>
-                            <Link to="/contact">
-                                <Button className="btn-accent px-8 py-6 text-lg rounded-xl">
-                                    Start building
-                                </Button>
-                            </Link>
-                        </div>
-
-                    </div>
-                </main>
-                <Footer />
-            </div>
-        </div>
-    );
+  return <div className="public-page min-h-screen"><Navbar /><main>
+    <section className="public-hero px-6 pb-20 pt-40 lg:pb-28"><div className="homepage-frame grid gap-10 lg:grid-cols-[1.15fr_.85fr] lg:items-end"><div><p className="homepage-eyebrow">Use cases</p><h1 className="homepage-title homepage-title--wide">Start with the money movement you need to <em>operate.</em></h1></div><p className="public-lead">Model the operational work behind payroll, payouts, treasury, remittance, and milestone escrow in one controlled test workspace.</p></div></section>
+    <section className="public-section px-6 py-20 sm:py-28"><div className="homepage-frame">{useCases.map(({ id, icon: Icon, title, audience, workflow, controls, seen, simulated }, index) => <article id={id} key={id} className="use-case-row"><div><div className="flex items-center gap-3"><span className="editorial-list__icon"><Icon size={18} strokeWidth={1.8} /></span><span className="public-index">0{index + 1}</span></div><h2>{title}</h2><p><strong>For:</strong> {audience}</p><Link to={`/features#${id === "marketplace" ? "payroll" : id}`} className="homepage-link mt-6">See the platform <ArrowRight size={15} /></Link></div><div className="use-case-row__details"><div><p>Workflow</p><span>{workflow}</span></div><div><p>Controls</p><span>{controls}</span></div><div><p>What users see</p><span className="flex items-start gap-2"><Check size={14} className="mt-1 shrink-0 text-[#087f5b]" />{seen}</span></div><div><p>In the test workspace</p><span>{simulated}</span></div></div></article>)}</div></section>
+    <section className="public-note px-6 py-16 sm:py-20"><div className="homepage-frame flex flex-col justify-between gap-6 md:flex-row md:items-center"><div><p className="homepage-eyebrow">Need another workflow?</p><h2 className="homepage-title homepage-title--section">Start with the movement you need to understand.</h2></div><Link to="/contact" className="public-button">Talk through a use case <ArrowRight size={15} /></Link></div></section>
+  </main><Footer /></div>;
 }
-

@@ -25,8 +25,29 @@ import { ZapziveLogo } from "@/components/ui/ZapziveLogo";
 import axios from "axios";
 import { toast } from "sonner";
 
+type PublicMilestone = {
+    id: string;
+    title: string;
+    description?: string;
+    amount: number;
+    dueDate: string;
+};
+
+type PublicContract = {
+    title: string;
+    client: string;
+    description?: string;
+    totalAmount: number;
+    lockedAmount: number;
+    status: string;
+    isPublic: boolean;
+    createdAt: string;
+    company?: { country?: string; kycVerified?: boolean };
+    milestones: PublicMilestone[];
+};
+
 const SignupBanner = () => (
-    <Card className="relative overflow-hidden border-emerald-500/10 bg-gradient-to-br from-emerald-500/[0.05] via-background to-blue-500/[0.05] mb-12 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] group transition-all hover:border-emerald-500/20">
+    <Card className="relative overflow-hidden border-[#cdd8c8] bg-[#e8eee4] mb-12 shadow-[0_12px_30px_rgba(32,33,30,.07)] group transition-all hover:border-[#11a879]">
         {/* Grain effect - slightly more subtle for lighter background */}
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.12] brightness-100 contrast-120 mix-blend-overlay pointer-events-none" />
 
@@ -36,20 +57,20 @@ const SignupBanner = () => (
                     <div className="space-y-2">
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest mb-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.8)] animate-pulse" />
-                            Instant Global Settlement
+                            Sandbox escrow invitation
                         </div>
-                        <h3 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">Join the zapzive Ecosystem</h3>
-                        <p className="text-zinc-300 text-lg leading-relaxed max-w-xl font-light mx-auto md:mx-0">
-                            Unlock institutional-grade escrow, instant global settlements, and verified identity.
+                        <h3 className="text-3xl sm:text-4xl font-semibold text-[#20211e] tracking-[-.055em]">Join the Zapzive ecosystem</h3>
+                        <p className="text-[#575750] text-base leading-relaxed max-w-xl mx-auto md:mx-0">
+                            Review a sandbox milestone workflow and submit a proposal without moving live funds.
                         </p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 max-w-lg mx-auto md:mx-0">
                         {[
-                            { label: "Instant Job Alerts", desc: "Real-time matching" },
-                            { label: "Stablecoin Payouts", desc: "USDC, ETH, & SOL" },
-                            { label: "Escrow Protection", desc: "Smart contract security" },
-                            { label: "Verified Badge", desc: "Boost your trust score" }
+                            { label: "Workflow context", desc: "Review the brief" },
+                            { label: "Test payout", desc: "Sandbox asset context" },
+                            { label: "Milestone controls", desc: "Approval and release state" },
+                            { label: "Recipient review", desc: "Keep identity context" }
                         ].map((item, i) => (
                             <div key={i} className="flex items-start gap-3 group/item justify-center md:justify-start">
                                 <div className="mt-1 flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/30 transition-all group-hover/item:bg-emerald-500/40">
@@ -65,7 +86,7 @@ const SignupBanner = () => (
                 </div>
                 <div className="shrink-0">
                     <Link to="/signup">
-                        <Button size="lg" className="h-14 px-10 rounded-full bg-white text-black hover:bg-zinc-200 text-base font-bold transition-all duration-300">
+                        <Button size="lg" className="h-12 rounded-[10px] bg-[#183a30] px-8 text-sm font-semibold text-[#f5f3ee] transition-all duration-300 hover:bg-[#087f5b]">
                             Get Started <ArrowRight className="w-5 h-5 ml-3" />
                         </Button>
                     </Link>
@@ -77,7 +98,7 @@ const SignupBanner = () => (
 
 export default function ContractBid() {
     const { id } = useParams();
-    const [contract, setContract] = useState<any>(null);
+    const [contract, setContract] = useState<PublicContract | null>(null);
     const [loading, setLoading] = useState(true);
     const [bidData, setBidData] = useState({
         contractorName: "",
@@ -88,12 +109,15 @@ export default function ContractBid() {
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
 
+    const apiBase = ((import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:3001')
+        .replace(/\/$/, '')
+        .replace(/\/api$/, '') + '/api';
+
     useEffect(() => {
         const fetchContract = async () => {
             try {
-                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-                const response = await axios.get(`${apiUrl}/api/escrow/public/${id}`);
-                setContract(response.data);
+                const response = await axios.get(`${apiBase}/escrow/public/${id}`);
+                setContract(response.data as PublicContract);
             } catch (error) {
                 console.error("Error fetching contract:", error);
                 toast.error("Failed to load contract details");
@@ -103,14 +127,13 @@ export default function ContractBid() {
         };
 
         if (id) fetchContract();
-    }, [id]);
+    }, [apiBase, id]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-            await axios.post(`${apiUrl}/api/escrow/public/${id}/bid`, {
+            await axios.post(`${apiBase}/escrow/public/${id}/bid`, {
                 ...bidData,
                 amount: parseFloat(bidData.amount)
             });
@@ -126,7 +149,7 @@ export default function ContractBid() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="public-page min-h-screen bg-background flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
             </div>
         );
@@ -134,7 +157,7 @@ export default function ContractBid() {
 
     if (!contract) {
         return (
-            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+            <div className="public-page min-h-screen bg-background flex flex-col items-center justify-center p-6">
                 <div className="text-center max-w-md space-y-4">
                     <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
                         <Shield className="w-8 h-8 text-muted-foreground" />
@@ -153,7 +176,7 @@ export default function ContractBid() {
 
     if (submitted) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center p-6">
+            <div className="public-page min-h-screen bg-background flex items-center justify-center p-6">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -179,12 +202,12 @@ export default function ContractBid() {
 
     if (isClosed) {
         return (
-            <div className="min-h-screen bg-background">
+            <div className="public-page min-h-screen bg-background">
                 <div className="max-w-7xl mx-auto p-6 lg:p-8 space-y-8">
                     {/* Header */}
                     <div className="space-y-6">
                         <div className="flex items-center gap-4">
-                            <ZapziveLogo size="sm" />
+                            <div className="rounded-[10px] border border-[#2f5e50] bg-[#183a30] px-3 py-2"><ZapziveLogo size="sm" /></div>
                             <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-900/50 border border-white/[0.03] backdrop-blur-sm self-center">
                                 <Vault className="w-3.5 h-3.5 text-zinc-400" />
                                 <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Secured Escrow</span>
@@ -252,7 +275,7 @@ export default function ContractBid() {
                                 <h2 className="text-xl font-bold">Milestones ({contract.milestones.length})</h2>
                             </div>
                             <div className="space-y-3">
-                                {contract.milestones.map((milestone: any, index: number) => (
+                                {contract.milestones.map((milestone, index) => (
                                     <div
                                         key={milestone.id}
                                         className="border border-border rounded-lg p-4"
@@ -286,13 +309,13 @@ export default function ContractBid() {
     }
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="public-page min-h-screen bg-background">
             <div className="max-w-7xl mx-auto p-6 lg:p-8 space-y-8">
                 {/* Header */}
                 <div className="space-y-6">
                     {/* zapzive Branding */}
                     <div className="flex items-center gap-4">
-                        <ZapziveLogo size="sm" />
+                        <div className="rounded-[10px] border border-[#2f5e50] bg-[#183a30] px-3 py-2"><ZapziveLogo size="sm" /></div>
                         <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-900/50 border border-white/[0.03] backdrop-blur-sm self-center">
                             <Vault className="w-3.5 h-3.5 text-zinc-400" />
                             <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Secured Escrow</span>
@@ -358,7 +381,7 @@ export default function ContractBid() {
                                 <h2 className="text-xl font-bold">Milestones ({contract.milestones.length})</h2>
                             </div>
                             <div className="space-y-3">
-                                {contract.milestones.map((milestone: any, index: number) => (
+                                {contract.milestones.map((milestone, index) => (
                                     <div
                                         key={milestone.id}
                                         className="border border-border rounded-lg p-4 hover:bg-accent/50 transition-colors"

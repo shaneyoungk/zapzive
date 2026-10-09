@@ -1,9 +1,21 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import crypto from 'crypto';
-import { authMiddleware, AuthRequest } from '../middleware/auth.middleware';
+import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth.middleware';
+import { ApiError, requiredText, safeEmail, sendApiError } from '../lib/security';
 
 const router = Router();
+
+function encryptWebhookSecret(secret: string): string {
+    const secretKey = process.env.JWT_SECRET;
+    if (!secretKey || secretKey.length < 32) throw new Error('JWT_SECRET is required to protect webhook secrets');
+    const key = crypto.createHash('sha256').update(secretKey).digest();
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const encrypted = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return ['enc:v1', iv.toString('hex'), tag.toString('hex'), encrypted.toString('hex')].join(':');
+}
 
 // Apply auth middleware to all settings routes
 router.use(authMiddleware as any);
@@ -21,14 +33,21 @@ router.get('/profile', async (req: AuthRequest, res: Response) => {
 
         res.json(company);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch profile' });
+        return sendApiError(res, error, 'Failed to fetch profile');
     }
 });
 
 // PUT /api/settings/profile - Update profile
-router.put('/profile', async (req: AuthRequest, res: Response) => {
+router.put('/profile', requireRole('owner', 'admin'), async (req: AuthRequest, res: Response) => {
     try {
-        const { name, email, phone, country, address, isTestMode } = req.body;
+        const name = req.body?.name === undefined ? undefined : requiredText(req.body.name, 'name', 160);
+        const email = req.body?.email === undefined ? undefined : safeEmail(req.body.email);
+        const phone = req.body?.phone === undefined ? undefined : requiredText(req.body.phone, 'phone', 40);
+        const country = req.body?.country === undefined ? undefined : requiredText(req.body.country, 'country', 80);
+        const address = req.body?.address === undefined ? undefined : requiredText(req.body.address, 'address', 300);
+        if (req.body?.isTestMode !== undefined) {
+            throw new ApiError(403, 'LIVE_MODE_REVIEW_REQUIRED', 'Sandbox/live mode changes require a separate reviewed workflow.');
+        }
 
         const company = await prisma.company.update({
             where: { id: req.companyId },
@@ -38,13 +57,12 @@ router.put('/profile', async (req: AuthRequest, res: Response) => {
                 phone,
                 country,
                 address,
-                isTestMode: isTestMode !== undefined ? isTestMode : undefined
             }
         });
 
         res.json(company);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to update profile' });
+        return sendApiError(res, error, 'Failed to update profile');
     }
 });
 
@@ -56,20 +74,44 @@ router.get('/api-keys', async (req: AuthRequest, res: Response) => {
             orderBy: { createdAt: 'desc' }
         });
 
-        res.json(apiKeys);
+        res.json(apiKeys.map(({ key: storedKey, ...apiKey }) => ({
+            ...apiKey,
+            scopes: (() => {
+                try {
+                    const parsed = JSON.parse(apiKey.scopes);
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch {
+                    return [];
+                }
+            })(),
+            key: '••••••••' + storedKey.slice(-8),
+        })));
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch API keys' });
+        return sendApiError(res, error, 'Failed to fetch API keys');
     }
 });
 
 // POST /api/settings/api-keys - Generate API key
-router.post('/api-keys', async (req: AuthRequest, res: Response) => {
+router.post('/api-keys', requireRole('owner', 'admin', 'developer'), async (req: AuthRequest, res: Response) => {
     try {
-        const { name } = req.body;
-        const env = req.body.environment || 'live';
+        const name = requiredText(req.body?.name, 'name', 100);
+        const env = req.body?.environment === undefined ? 'test' : req.body.environment;
+        if (!['test', 'live'].includes(env)) throw new ApiError(422, 'INVALID_KEY_ENVIRONMENT', 'environment must be test or live.');
+        if (env === 'live') {
+            throw new ApiError(403, 'LIVE_MODE_REVIEW_REQUIRED', 'Live API keys are unavailable until your organization completes production review.');
+        }
+        const requestedScopes = req.body?.scopes === undefined ? ['read', 'write'] : req.body.scopes;
+        if (!Array.isArray(requestedScopes) || requestedScopes.length < 1 || requestedScopes.length > 3) {
+            throw new ApiError(422, 'INVALID_KEY_SCOPES', 'scopes must contain between one and three permissions.');
+        }
+        const allowedScopes = new Set(['read', 'write', 'approve']);
+        const scopes = [...new Set(requestedScopes.filter((scope: unknown): scope is string => typeof scope === 'string'))];
+        if (scopes.length !== requestedScopes.length || scopes.some((scope) => !allowedScopes.has(scope))) {
+            throw new ApiError(422, 'INVALID_KEY_SCOPES', 'Allowed scopes are read, write, and approve.');
+        }
 
         // Generate random API key
-        const prefix = env === 'live' ? 'kash_live' : 'kash_test';
+        const prefix = env === 'live' ? 'sk_live' : 'sk_test';
         const randomKey = crypto.randomBytes(24).toString('hex');
         const key = `${prefix}_${randomKey}`;
 
@@ -77,29 +119,36 @@ router.post('/api-keys', async (req: AuthRequest, res: Response) => {
             data: {
                 companyId: req.companyId!,
                 name,
-                key
+                environment: env,
+                scopes: JSON.stringify(scopes),
+                key: crypto.createHash('sha256').update(key).digest('hex')
             }
         });
 
-        res.status(201).json(apiKey);
+        res.status(201).json({
+            id: apiKey.id,
+            name: apiKey.name,
+            environment: apiKey.environment,
+            scopes,
+            createdAt: apiKey.createdAt,
+            key,
+            warning: 'Save this key now. It will not be shown again.',
+        });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to generate API key' });
+        return sendApiError(res, error, 'Failed to generate API key');
     }
 });
 
 // DELETE /api/settings/api-keys/:id - Revoke API key
-router.delete('/api-keys/:id', async (req: AuthRequest, res: Response) => {
+router.delete('/api-keys/:id', requireRole('owner', 'admin', 'developer'), async (req: AuthRequest, res: Response) => {
     try {
-        await prisma.apiKey.delete({
-            where: {
-                id: req.params.id,
-                companyId: req.companyId // Ensure user owns the key
-            }
-        });
+        const apiKey = await prisma.apiKey.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+        if (!apiKey) return res.status(404).json({ error: 'API key not found', code: 'NOT_FOUND' });
+        await prisma.apiKey.delete({ where: { id: apiKey.id } });
 
         res.json({ message: 'API key revoked successfully' });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to revoke API key' });
+        return sendApiError(res, error, 'Failed to revoke API key');
     }
 });
 
@@ -111,72 +160,104 @@ router.get('/webhooks', async (req: AuthRequest, res: Response) => {
             orderBy: { createdAt: 'desc' }
         });
 
-        res.json(webhooks);
+        res.json(webhooks.map(({ secret, ...webhook }) => ({
+            ...webhook,
+            secret: '••••••••',
+        })));
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch webhooks' });
+        return sendApiError(res, error, 'Failed to fetch webhooks');
     }
 });
 
 // POST /api/settings/webhooks - Create webhook
-router.post('/webhooks', async (req: AuthRequest, res: Response) => {
+router.post('/webhooks', requireRole('owner', 'admin', 'developer'), async (req: AuthRequest, res: Response) => {
     try {
-        const { url, events } = req.body;
+        const url = requiredText(req.body?.url, 'url', 500);
+        let parsedUrl: URL;
+        try {
+            parsedUrl = new URL(url);
+        } catch {
+            throw new ApiError(422, 'INVALID_WEBHOOK_URL', 'Webhook URL must be a valid URL.');
+        }
+        if (parsedUrl.protocol !== 'https:' && process.env.NODE_ENV === 'production') {
+            throw new ApiError(422, 'INVALID_WEBHOOK_URL', 'Webhook URL must use HTTPS.');
+        }
+        const events = Array.isArray(req.body?.events)
+            ? req.body.events.filter((event: unknown): event is string => typeof event === 'string').slice(0, 50)
+            : [];
+        if (events.length === 0) throw new ApiError(422, 'INVALID_WEBHOOK_EVENTS', 'Select at least one webhook event.');
 
-        // Generate webhook secret
         const secret = crypto.randomBytes(32).toString('hex');
 
         const webhook = await prisma.webhook.create({
             data: {
                 companyId: req.companyId!,
-                url,
+                url: parsedUrl.toString(),
                 events: JSON.stringify(events),
-                secret,
+                secret: encryptWebhookSecret(secret),
                 active: true
             }
         });
 
-        res.status(201).json(webhook);
+        res.status(201).json({ ...webhook, warning: 'Save this signing secret now. It will not be shown again.' });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to create webhook' });
+        return sendApiError(res, error, 'Failed to create webhook');
     }
 });
 
 // PUT /api/settings/webhooks/:id - Update webhook
-router.put('/webhooks/:id', async (req: AuthRequest, res: Response) => {
+router.put('/webhooks/:id', requireRole('owner', 'admin', 'developer'), async (req: AuthRequest, res: Response) => {
     try {
-        const { url, events, active } = req.body;
-
+        const existing = await prisma.webhook.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Webhook not found', code: 'NOT_FOUND' });
+        let normalizedUrl: string | undefined;
+        if (req.body?.url !== undefined) {
+            const url = requiredText(req.body.url, 'url', 500);
+            let parsedUrl: URL;
+            try {
+                parsedUrl = new URL(url);
+            } catch {
+                throw new ApiError(422, 'INVALID_WEBHOOK_URL', 'Webhook URL must be a valid URL.');
+            }
+            if (parsedUrl.protocol !== 'https:' && process.env.NODE_ENV === 'production') {
+                throw new ApiError(422, 'INVALID_WEBHOOK_URL', 'Webhook URL must use HTTPS.');
+            }
+            normalizedUrl = parsedUrl.toString();
+        }
+        const events = req.body?.events === undefined
+            ? undefined
+            : Array.isArray(req.body.events)
+                ? req.body.events.filter((event: unknown): event is string => typeof event === 'string').slice(0, 50)
+                : [];
+        if (events !== undefined && events.length === 0) {
+            throw new ApiError(422, 'INVALID_WEBHOOK_EVENTS', 'Select at least one webhook event.');
+        }
+        const active = req.body?.active === undefined ? undefined : req.body.active === true;
         const webhook = await prisma.webhook.update({
-            where: {
-                id: req.params.id,
-                companyId: req.companyId
-            },
+            where: { id: existing.id },
             data: {
-                url,
+                url: normalizedUrl,
                 events: events ? JSON.stringify(events) : undefined,
                 active
             }
         });
 
-        res.json(webhook);
+        res.json({ ...webhook, secret: '••••••••' });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to update webhook' });
+        return sendApiError(res, error, 'Failed to update webhook');
     }
 });
 
 // DELETE /api/settings/webhooks/:id - Delete webhook
-router.delete('/webhooks/:id', async (req: AuthRequest, res: Response) => {
+router.delete('/webhooks/:id', requireRole('owner', 'admin', 'developer'), async (req: AuthRequest, res: Response) => {
     try {
-        await prisma.webhook.delete({
-            where: {
-                id: req.params.id,
-                companyId: req.companyId
-            }
-        });
+        const webhook = await prisma.webhook.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+        if (!webhook) return res.status(404).json({ error: 'Webhook not found', code: 'NOT_FOUND' });
+        await prisma.webhook.delete({ where: { id: webhook.id } });
 
         res.json({ message: 'Webhook deleted successfully' });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to delete webhook' });
+        return sendApiError(res, error, 'Failed to delete webhook');
     }
 });
 
@@ -191,7 +272,7 @@ router.get('/metrics', async (req: AuthRequest, res: Response) => {
 
         res.json(metrics);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch metrics' });
+        return sendApiError(res, error, 'Failed to fetch metrics');
     }
 });
 

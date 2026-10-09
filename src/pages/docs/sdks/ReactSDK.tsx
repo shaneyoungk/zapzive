@@ -1,78 +1,50 @@
 import { CodeWindow } from "@/components/docs/CodeWindow";
+import { DocCallout } from "@/components/docs/DocCallout";
 import { Badge } from "@/components/ui/badge";
-import { Layers, Zap, Code2, Terminal } from "lucide-react";
+import { ArrowRight, Monitor, ShieldCheck } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function ReactSDK() {
     return (
-        <div className="space-y-16 max-w-5xl">
-            <div>
-                <div className="flex items-center gap-3 mb-6">
-                    <h1 className="text-4xl font-bold text-white">React SDK</h1>
-                    <Badge variant="outline" className="border-blue-400/20 text-blue-400">Frontend</Badge>
-                </div>
-                <p className="text-lg text-zinc-400 leading-relaxed max-w-3xl">
-                    Build beautiful, PCI-compliant payment experiences in your React application.
-                    Includes components for secure card entry and custom hooks for account management.
-                </p>
-            </div>
+        <div className="max-w-5xl space-y-12">
+            <header className="border-b border-[#d9d6cd] pb-10">
+                <div className="flex flex-wrap items-center gap-3"><p className="mono-label text-[#087f5b]">Browser integration</p><Badge variant="outline" className="border-[#cdd8c8] text-[#087f5b]">Use your backend</Badge></div>
+                <h1 className="mt-5 text-5xl">React integration</h1>
+                <p className="mt-5 max-w-3xl text-lg leading-8 text-[#575750]">There is no published browser SDK and secret API keys must never enter a React bundle. Put Zapzive calls behind your server, then let the browser call your application’s authenticated endpoints.</p>
+            </header>
 
-            {/* Installation */}
-            <section className="space-y-6">
-                <div className="flex items-center gap-3">
-                    <Terminal className="w-5 h-5 text-blue-400" />
-                    <h2 className="text-2xl font-bold text-white">Installation</h2>
-                </div>
-                <CodeWindow code="npm install @zapzive/react" language="bash" title="Terminal" />
+            <DocCallout type="mistake" title="Never put sk_test or sk_live in client code">
+                A publishable-key card flow is not implemented in this project. A React app should call your own server, which authenticates to Zapzive and enforces the user’s authorization, amount limits, and idempotency policy.
+            </DocCallout>
+
+            <section className="grid gap-8 lg:grid-cols-[.75fr_1.25fr] lg:items-start">
+                <div><div className="flex items-center gap-3"><Monitor size={18} className="text-[#087f5b]" /><h2 className="text-2xl">Call your application API</h2></div><p className="mt-4 text-sm leading-7 text-[#575750]">The frontend sends intent to your own route. The server validates the session and forwards a controlled request with the secret key.</p></div>
+                <CodeWindow language="tsx" title="SendMoneyButton.tsx" showLineNumbers code={`export function SendMoneyButton({ recipientId }: { recipientId: string }) {
+  async function send() {
+    const response = await fetch("/api/payments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ recipientId, amount: 50, currency: "USDC" }),
+    });
+    if (!response.ok) throw new Error("Payment could not be submitted");
+  }
+
+  return <button onClick={send}>Send payment</button>;
+}`} />
             </section>
 
-            {/* Provider Setup */}
-            <section className="space-y-8">
-                <div className="flex items-center gap-3">
-                    <Layers className="w-5 h-5 text-purple-400" />
-                    <h2 className="text-2xl font-bold text-white">Provider Setup</h2>
-                </div>
-                <p className="text-zinc-500">Wrap your application in the `zapziveProvider` with your Publishable Key.</p>
-                <CodeWindow
-                    language="tsx"
-                    title="App.tsx"
-                    code={`import { zapziveProvider } from '@zapzive/react';
-
-function App() {
-  return (
-    <zapziveProvider publishableKey="pk_test_...">
-      <MyCommerceApp />
-    </zapziveProvider>
-  );
-}`}
-                />
+            <section className="grid gap-4 sm:grid-cols-3">
+                <Rule icon={ShieldCheck} title="Server-side secrets" copy="Only your backend talks to the Zapzive API." />
+                <Rule icon={Monitor} title="Session-aware UI" copy="Use your app session and CSRF protection." />
+                <Rule icon={ShieldCheck} title="Explicit state" copy="Show pending, completed, and failed states from your server." />
             </section>
 
-            {/* Custom Hooks */}
-            <section className="space-y-8">
-                <div className="flex items-center gap-3">
-                    <Zap className="w-5 h-5 text-amber-400" />
-                    <h2 className="text-2xl font-bold text-white">The usezapzive Hook</h2>
-                </div>
-                <p className="text-zinc-400">Access the zapzive instance anywhere in your component tree.</p>
-                <CodeWindow
-                    language="tsx"
-                    title="BalanceSummary.tsx"
-                    code={`import { usezapzive } from '@zapzive/react';
-
-export function BalanceSummary() {
-  const { balance, loading, error } = usezapzive();
-
-  if (loading) return <div>Loading...</div>;
-
-  return (
-    <div>
-      Total Balance: $\{balance.available\} $\{balance.currency\}
-    </div>
-  );
-}`}
-                />
-            </section>
+            <Link to="/docs/quickstart" className="inline-flex items-center gap-2 text-sm font-semibold text-[#087f5b]">Start with the REST quickstart <ArrowRight size={15} /></Link>
         </div>
     );
 }
 
+function Rule({ icon: Icon, title, copy }: { icon: typeof ShieldCheck; title: string; copy: string }) {
+    return <div className="rounded-2xl border border-[#d9d6cd] bg-[#fffdf8] p-5"><Icon size={17} className="text-[#087f5b]" /><h3 className="mt-4 text-sm font-semibold text-[#20211e]">{title}</h3><p className="mt-2 text-xs leading-6 text-[#77766e]">{copy}</p></div>;
+}

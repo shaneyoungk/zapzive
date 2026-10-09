@@ -1,101 +1,19 @@
-import { motion } from "framer-motion";
-import { ArrowRight, Globe, TrendingUp, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, Compass, Globe2, ShieldCheck, Waypoints } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { Link } from "react-router-dom";
-import DarkVeil from "@/components/ui/DarkVeil";
+
+const principles = [
+  { icon: Compass, title: "Clarity over complexity", copy: "Financial operations should be understandable before they are automated." },
+  { icon: ShieldCheck, title: "Control by default", copy: "Approval, compliance, and audit context belong inside every movement." },
+  { icon: Waypoints, title: "Local reach, one model", copy: "Different payment rails should not create fragmented operating workflows." },
+];
 
 export default function About() {
-    return (
-        <div className="min-h-screen relative selection:bg-accent/30">
-            {/* Dynamic Background */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <DarkVeil
-                    hueShift={160}
-                    noiseIntensity={0.02}
-                    scanlineIntensity={0.05}
-                    speed={0.2}
-                    scanlineFrequency={0.8}
-                    warpAmount={0.15}
-                />
-            </div>
-
-            <div className="relative z-10">
-                <Navbar />
-
-                <main className="pt-40 pb-20">
-                    <div className="container mx-auto px-6 lg:px-8">
-
-                        {/* Hero */}
-                        <div className="text-center max-w-4xl mx-auto mb-32">
-                            <h1 className="text-5xl lg:text-7xl font-extrabold mb-8 text-zinc-50">
-                                We are the <span className="text-gradient">infrastructure</span> <br />
-                                for the internet GDP
-                            </h1>
-                        </div>
-
-                        {/* Stats */}
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-32">
-                            {[
-                                { label: "Founded", value: "2024" },
-                                { label: "Team", value: "25+" },
-                                { label: "processed", value: "$50M+" },
-                                { label: "Uptime", value: "99.99%" },
-                            ].map((stat, i) => (
-                                <div key={stat.label} className="p-8 rounded-3xl bg-gradient-to-br from-[#111] to-black border border-zinc-700/50 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.8)] text-center">
-                                    <div className="text-4xl lg:text-5xl font-extrabold text-zinc-50 mb-2">{stat.value}</div>
-                                    <div className="text-sm text-zinc-400 font-bold uppercase tracking-wider">{stat.label}</div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Mission */}
-                        <div className="grid lg:grid-cols-2 gap-16 items-center mb-32">
-                            <div className="space-y-6">
-                                <h2 className="text-4xl font-extrabold text-zinc-50">Our Mission</h2>
-                                <div className="h-1 w-20 bg-accent rounded-full" />
-                                <p className="text-lg text-muted-foreground leading-relaxed">
-                                    zapzive was building on the belief that money should move as fast as data.
-                                    We are replacing the archaic correspondent banking network with a unified,
-                                    transparent, and instant layer of settlement built on stablecoins.
-                                </p>
-                                <p className="text-lg text-muted-foreground leading-relaxed">
-                                    Focusing on emerging markets, we solve the hardest problems first:
-                                    liquidity, trust, and last-mile connectivity.
-                                </p>
-                            </div>
-                            <div className="aspect-square rounded-[3rem] bg-gradient-to-br from-[#111] to-[#050505] border border-white/10 relative overflow-hidden flex items-center justify-center shadow-[0_8px_30px_-12px_rgba(0,0,0,0.8)]">
-                                <Globe className="w-64 h-64 text-white/5" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent" />
-                            </div>
-                        </div>
-
-                        {/* Team */}
-                        <div className="mb-20">
-                            <h2 className="text-3xl font-extrabold mb-12 text-center text-zinc-50">The Team</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                {[1, 2, 3].map(i => (
-                                    <div key={i} className="group p-6 rounded-3xl bg-gradient-to-br from-[#111] to-black border border-white/5 shadow-xl hover:border-accent/30 transition-all text-center">
-                                        <div className="w-24 h-24 rounded-full bg-white/10 mx-auto mb-6 overflow-hidden">
-                                            <Users className="w-full h-full p-6 text-white/50" />
-                                        </div>
-                                        <h3 className="font-extrabold text-lg mb-1 text-zinc-50">Founder Name</h3>
-                                        <p className="text-sm text-muted-foreground mb-4 font-medium">Position</p>
-                                        <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <div className="w-8 h-8 rounded-full bg-white/10" />
-                                            <div className="w-8 h-8 rounded-full bg-white/10" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                    </div>
-                </main>
-                <Footer />
-            </div>
-        </div>
-    );
+  return <div className="public-page min-h-screen"><Navbar /><main>
+    <section className="public-hero px-6 pb-20 pt-40 lg:pb-28"><div className="homepage-frame"><p className="homepage-eyebrow">About Zapzive</p><h1 className="homepage-title homepage-title--wide">Make every movement easier to <em>understand.</em></h1><div className="public-intro-grid"><p>We are building a clearer operating layer for payments, treasury, and programmable financial controls.</p><p>Today, Zapzive is a test workspace for modeling approvals, recipients, escrow, reconciliation, and compliance records around a financial movement.</p></div></div></section>
+    <section className="public-section px-6 py-20 lg:py-28"><div className="homepage-frame grid gap-16 lg:grid-cols-[.8fr_1.2fr]"><div><p className="homepage-eyebrow">Our mission</p><h2 className="homepage-title homepage-title--section">Make cross-border finance clear, visible, and controlled.</h2></div><div className="public-statement"><Globe2 size={25} strokeWidth={1.7} /><p>Global businesses should not need a patchwork of bank portals, spreadsheets, wallet tools, and private messages to understand where their money is.</p><span>We focus on the operational record around the transaction—not only the transaction itself.</span></div></div></section>
+    <section className="homepage-dark px-6 py-20"><div className="homepage-frame"><div className="mb-12 grid gap-6 md:grid-cols-2"><p className="homepage-eyebrow">What guides the product</p><h2 className="homepage-title homepage-title--section">Principles before features.</h2></div><div className="public-principles">{principles.map(({ icon: Icon, title, copy }) => <article key={title}><Icon size={20} /><h3>{title}</h3><p>{copy}</p></article>)}</div></div></section>
+    <section className="public-section px-6 py-20"><div className="homepage-frame flex flex-col justify-between gap-6 border-b border-[#d9d6cd] pb-8 md:flex-row md:items-end"><h2 className="homepage-title homepage-title--section">Build the next global financial workflow with us.</h2><Link to="/contact" className="homepage-link">Start a conversation <ArrowRight size={15} /></Link></div></section>
+  </main><Footer /></div>;
 }
-

@@ -4,7 +4,6 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateRemittance, useRecipients, useAddRecipient } from "@/hooks/use-remittance";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Plus, Check, ChevronRight, ChevronLeft, Loader2, Globe, Wallet, Building2, Smartphone, MapPin, DollarSign, ArrowRight, Save, Send } from "lucide-react";
+import { Search, Check, ChevronRight, Loader2, Globe, Wallet, Building2, Smartphone, MapPin, ArrowRight, Save, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
     Select,
@@ -22,22 +21,66 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SendMoneyWizardProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
-const deliveryMethods = [
+type DeliveryMethod = "wallet" | "bank" | "mobile-money" | "cash-agent";
+type WalletNetwork = "evm" | "tron";
+
+type RecipientRecord = {
+    id: string;
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+    country?: string | null;
+    walletAddress?: string | null;
+    walletNetwork?: WalletNetwork | null;
+    bankAccount?: string | null;
+    mobileNumber?: string | null;
+};
+
+const deliveryMethods: { id: DeliveryMethod; label: string; icon: typeof Wallet; description: string }[] = [
     { id: "wallet", label: "Crypto Wallet", icon: Wallet, description: "Instant delivery, low fees" },
     { id: "bank", label: "Bank Transfer", icon: Building2, description: "1-2 business days" },
     { id: "mobile-money", label: "Mobile Money", icon: Smartphone, description: "Instant to phone wallet" },
     { id: "cash-agent", label: "Cash Pickup", icon: MapPin, description: "Pickup at agent location" },
 ];
 
+function methodsForRecipient(recipient: RecipientRecord | undefined): typeof deliveryMethods {
+    if (!recipient) return deliveryMethods;
+    return deliveryMethods.filter((method) => {
+        if (method.id === "cash-agent") return true;
+        if (method.id === "wallet") return Boolean(recipient.walletAddress);
+        if (method.id === "bank") return Boolean(recipient.bankAccount);
+        return Boolean(recipient.mobileNumber || recipient.phone);
+    });
+}
+
+function preferredMethod(recipient: RecipientRecord): DeliveryMethod {
+    return methodsForRecipient(recipient)[0]?.id ?? "cash-agent";
+}
+
+function shortDestination(value?: string | null) {
+    if (!value) return "No destination saved";
+    return value.length > 16 ? `${value.slice(0, 8)}…${value.slice(-6)}` : value;
+}
+
+function destinationSummary(recipient: RecipientRecord | undefined, deliveryMethod: DeliveryMethod) {
+    if (!recipient) return "Choose a recipient";
+    if (deliveryMethod === "wallet") return `${recipient.walletNetwork === "tron" ? "TRON" : "EVM"} wallet · ${shortDestination(recipient.walletAddress)}`;
+    if (deliveryMethod === "bank") return `Bank account · ${shortDestination(recipient.bankAccount)}`;
+    if (deliveryMethod === "mobile-money") return `Mobile money · ${recipient.mobileNumber || recipient.phone || "No mobile number"}`;
+    return "Cash pickup at a supported agent";
+}
+
 export function SendMoneyWizard({ isOpen, onClose }: SendMoneyWizardProps) {
     const [step, setStep] = useState(1);
     const { data: recipients = [] } = useRecipients();
+    const { company } = useAuth();
     const { mutate: createRemittance, isPending: isCreating } = useCreateRemittance();
     const { mutate: addRecipient, isPending: isAddingRecipient } = useAddRecipient();
 
@@ -47,50 +90,96 @@ export function SendMoneyWizard({ isOpen, onClose }: SendMoneyWizardProps) {
         name: "",
         email: "",
         country: "",
+        destinationType: "wallet" as DeliveryMethod,
+        walletNetwork: "evm" as WalletNetwork,
         walletAddress: "",
         bankAccount: "",
+        phone: "",
+        mobileNumber: "",
     });
 
     const [transferData, setTransferData] = useState({
         amount: "",
         currency: "USDC",
         localCurrency: "NGN",
-        deliveryMethod: "wallet",
+        deliveryMethod: "wallet" as DeliveryMethod,
         note: "",
     });
 
-    const filteredRecipients = recipients.filter((r: any) =>
+    const filteredRecipients = (recipients as RecipientRecord[]).filter((r) =>
         r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.email.toLowerCase().includes(searchQuery.toLowerCase())
+        (r.email || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const selectedRecipient = useMemo(() =>
-        recipients.find((r: any) => r.id === selectedRecipientId),
+        (recipients as RecipientRecord[]).find((r) => r.id === selectedRecipientId),
         [recipients, selectedRecipientId]
     );
+    const availableDeliveryMethods = useMemo(() => methodsForRecipient(selectedRecipient), [selectedRecipient]);
 
-    // Mock FX rates
-    const fxRate = 1200; // 1 USDC = 1200 NGN
+    const sandboxRates: Record<string, number> = { NGN: 1200, KES: 130, GHS: 15, BRL: 5 };
+    const fxRate = sandboxRates[transferData.localCurrency] || 1200;
     const fee = (parseFloat(transferData.amount) || 0) * 0.01 + 2;
 
+    const chooseRecipient = (recipient: RecipientRecord) => {
+        setSelectedRecipientId(recipient.id);
+        setTransferData((current) => ({ ...current, deliveryMethod: methodsForRecipient(recipient).some((method) => method.id === current.deliveryMethod) ? current.deliveryMethod : preferredMethod(recipient) }));
+        setStep(2);
+    };
+
     const handleAddRecipient = () => {
-        if (!newRecipient.name || !newRecipient.walletAddress) {
-            toast.error("Please fill in required fields");
+        const name = newRecipient.name.trim();
+        const country = newRecipient.country.trim();
+        const destinationType = newRecipient.destinationType;
+        const walletAddress = newRecipient.walletAddress.trim();
+        const bankAccount = newRecipient.bankAccount.trim();
+        const mobileNumber = newRecipient.mobileNumber.trim() || newRecipient.phone.trim();
+
+        if (!name || !country) {
+            toast.error("Add the recipient's name and country.");
             return;
         }
-        addRecipient(newRecipient, {
-            onSuccess: (data) => {
-                setSelectedRecipientId(data.id);
-                setStep(2);
-            }
+        if (destinationType === "wallet" && !walletAddress) {
+            toast.error(`Enter the recipient's ${newRecipient.walletNetwork === "tron" ? "TRON" : "EVM"} wallet address.`);
+            return;
+        }
+        if (destinationType === "bank" && !bankAccount) {
+            toast.error("Enter the recipient's bank account or account identifier.");
+            return;
+        }
+        if (destinationType === "mobile-money" && !mobileNumber) {
+            toast.error("Enter the mobile-money number.");
+            return;
+        }
+
+        addRecipient({
+            name,
+            country,
+            ...(newRecipient.email.trim() ? { email: newRecipient.email.trim() } : {}),
+            destinationType,
+            ...(destinationType === "wallet" ? { walletAddress, walletNetwork: newRecipient.walletNetwork } : {}),
+            ...(destinationType === "bank" ? { bankAccount } : {}),
+            ...(destinationType === "mobile-money" ? { phone: mobileNumber, mobileNumber } : {}),
+        }, {
+            onSuccess: (data: RecipientRecord) => chooseRecipient(data),
         });
     };
 
     const handleCreateRemittance = () => {
+        if (!selectedRecipientId || !selectedRecipient) {
+            toast.error("Choose a saved recipient before sending money.");
+            setStep(1);
+            return;
+        }
+        if (!availableDeliveryMethods.some((method) => method.id === transferData.deliveryMethod)) {
+            toast.error("Choose a delivery method saved for this recipient.");
+            setStep(2);
+            return;
+        }
         const payload = {
-            sender: "Antigravity Corp",
+            sender: company?.name || "Your organization",
             recipientId: selectedRecipientId,
-            recipientCountry: selectedRecipient?.country || newRecipient.country,
+            recipientCountry: selectedRecipient.country || "",
             amount: parseFloat(transferData.amount) || 0,
             currency: transferData.currency,
             localAmount: (parseFloat(transferData.amount) || 0) * fxRate,
@@ -112,7 +201,7 @@ export function SendMoneyWizard({ isOpen, onClose }: SendMoneyWizardProps) {
     const resetForm = () => {
         setStep(1);
         setSelectedRecipientId(null);
-        setNewRecipient({ name: "", email: "", country: "", walletAddress: "", bankAccount: "" });
+        setNewRecipient({ name: "", email: "", country: "", destinationType: "wallet", walletNetwork: "evm", walletAddress: "", bankAccount: "", phone: "", mobileNumber: "" });
         setTransferData({ amount: "", currency: "USDC", localCurrency: "NGN", deliveryMethod: "wallet", note: "" });
     };
 
@@ -170,7 +259,7 @@ export function SendMoneyWizard({ isOpen, onClose }: SendMoneyWizardProps) {
                                 </div>
 
                                 <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1 no-scrollbar">
-                                    {filteredRecipients.map((recipient: any) => (
+                                    {filteredRecipients.map((recipient) => (
                                         <div
                                             key={recipient.id}
                                             className={cn(
@@ -179,10 +268,7 @@ export function SendMoneyWizard({ isOpen, onClose }: SendMoneyWizardProps) {
                                                     ? "bg-emerald-500/5 border-emerald-500/30 ring-1 ring-emerald-500/20"
                                                     : "bg-muted/30 border-border hover:border-emerald-500/30"
                                             )}
-                                            onClick={() => {
-                                                setSelectedRecipientId(recipient.id);
-                                                setStep(2);
-                                            }}
+                                            onClick={() => chooseRecipient(recipient)}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center font-bold text-muted-foreground shadow-sm">
@@ -190,7 +276,7 @@ export function SendMoneyWizard({ isOpen, onClose }: SendMoneyWizardProps) {
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-semibold text-foreground">{recipient.name}</p>
-                                                    <p className="text-[10px] text-muted-foreground font-medium">{recipient.country || "Global"}</p>
+                                                    <p className="text-[10px] text-muted-foreground font-medium">{recipient.country || "Global"} · {destinationSummary(recipient, preferredMethod(recipient))}</p>
                                                 </div>
                                             </div>
                                             {selectedRecipientId === recipient.id && <Check className="w-4 h-4 text-emerald-500" />}
@@ -203,7 +289,7 @@ export function SendMoneyWizard({ isOpen, onClose }: SendMoneyWizardProps) {
                                         <div className="space-y-3 p-4 bg-muted/20 border border-border rounded-xl">
                                             <div className="grid grid-cols-2 gap-3">
                                                 <Input
-                                                    placeholder="Name"
+                                                    placeholder="Full name"
                                                     value={newRecipient.name}
                                                     onChange={e => setNewRecipient({ ...newRecipient, name: e.target.value })}
                                                     className="h-9 text-xs bg-card border-border focus:border-emerald-500/50"
@@ -216,11 +302,63 @@ export function SendMoneyWizard({ isOpen, onClose }: SendMoneyWizardProps) {
                                                 />
                                             </div>
                                             <Input
-                                                placeholder="Wallet Address (EVM)"
-                                                value={newRecipient.walletAddress}
-                                                onChange={e => setNewRecipient({ ...newRecipient, walletAddress: e.target.value })}
-                                                className="h-9 text-xs bg-card border-border font-mono focus:border-emerald-500/50"
+                                                type="email"
+                                                placeholder="Email (optional)"
+                                                value={newRecipient.email}
+                                                onChange={e => setNewRecipient({ ...newRecipient, email: e.target.value })}
+                                                className="h-9 text-xs bg-card border-border focus:border-emerald-500/50"
                                             />
+                                            <div className="space-y-2">
+                                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Payout destination</p>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {deliveryMethods.map((method) => {
+                                                        const Icon = method.icon;
+                                                        const active = newRecipient.destinationType === method.id;
+                                                        return <button
+                                                            key={method.id}
+                                                            type="button"
+                                                            aria-pressed={active}
+                                                            onClick={() => setNewRecipient((current) => ({ ...current, destinationType: method.id }))}
+                                                            className={cn("flex min-h-10 items-center gap-2 rounded-lg border px-2.5 text-left text-xs font-semibold transition-colors", active ? "border-emerald-500/40 bg-emerald-500/10 text-foreground" : "border-border bg-card text-muted-foreground hover:border-emerald-500/30")}
+                                                        >
+                                                            <Icon className={cn("h-3.5 w-3.5 shrink-0", active ? "text-emerald-500" : "text-muted-foreground")} />
+                                                            <span className="truncate">{method.label}</span>
+                                                        </button>;
+                                                    })}
+                                                </div>
+                                            </div>
+                                            {newRecipient.destinationType === "wallet" && <div className="space-y-2">
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {(["evm", "tron"] as const).map((walletNetwork) => <button
+                                                        key={walletNetwork}
+                                                        type="button"
+                                                        aria-pressed={newRecipient.walletNetwork === walletNetwork}
+                                                        onClick={() => setNewRecipient((current) => ({ ...current, walletNetwork }))}
+                                                        className={cn("h-8 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-colors", newRecipient.walletNetwork === walletNetwork ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600" : "border-border bg-card text-muted-foreground hover:border-emerald-500/30")}
+                                                    >{walletNetwork === "evm" ? "EVM" : "TRON"}</button>)}
+                                                </div>
+                                                <Input
+                                                    placeholder={newRecipient.walletNetwork === "tron" ? "TRON address (T…)" : "EVM address (0x…)"}
+                                                    value={newRecipient.walletAddress}
+                                                    onChange={e => setNewRecipient({ ...newRecipient, walletAddress: e.target.value })}
+                                                    className="h-9 text-xs bg-card border-border font-mono focus:border-emerald-500/50"
+                                                />
+                                                <p className="text-[10px] leading-4 text-muted-foreground">{newRecipient.walletNetwork === "tron" ? "TRON addresses are checked with their Base58 checksum before saving." : "Use a complete, nonzero EVM address. The network family is saved with the recipient."}</p>
+                                            </div>}
+                                            {newRecipient.destinationType === "bank" && <Input
+                                                placeholder="Bank account or IBAN"
+                                                value={newRecipient.bankAccount}
+                                                onChange={e => setNewRecipient({ ...newRecipient, bankAccount: e.target.value })}
+                                                className="h-9 text-xs bg-card border-border font-mono focus:border-emerald-500/50"
+                                            />}
+                                            {newRecipient.destinationType === "mobile-money" && <Input
+                                                type="tel"
+                                                placeholder="Mobile-money number"
+                                                value={newRecipient.mobileNumber}
+                                                onChange={e => setNewRecipient({ ...newRecipient, mobileNumber: e.target.value, phone: e.target.value })}
+                                                className="h-9 text-xs bg-card border-border focus:border-emerald-500/50"
+                                            />}
+                                            {newRecipient.destinationType === "cash-agent" && <p className="rounded-lg border border-dashed border-border bg-card/70 px-3 py-2 text-[10px] leading-4 text-muted-foreground">No account is needed for cash pickup. Delivery location is confirmed during the final payout step.</p>}
                                             <Button
                                                 variant="outline"
                                                 className="w-full h-8 text-xs border-border hover:bg-muted font-bold"
@@ -244,8 +382,12 @@ export function SendMoneyWizard({ isOpen, onClose }: SendMoneyWizardProps) {
                                 exit={{ opacity: 0, x: -20 }}
                                 className="space-y-4"
                             >
+                                {selectedRecipient && <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.035] p-3">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">Sending to {selectedRecipient.name}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">Choose one of the payout methods saved for this recipient.</p>
+                                </div>}
                                 <div className="space-y-3">
-                                    {deliveryMethods.map((method) => (
+                                    {availableDeliveryMethods.map((method) => (
                                         <div
                                             key={method.id}
                                             className={cn(
@@ -265,6 +407,7 @@ export function SendMoneyWizard({ isOpen, onClose }: SendMoneyWizardProps) {
                                             <div className="flex-1">
                                                 <p className="text-sm font-bold text-foreground">{method.label}</p>
                                                 <p className="text-xs text-muted-foreground font-medium">{method.description}</p>
+                                                {transferData.deliveryMethod === method.id && <p className="mt-1 truncate font-mono text-[10px] text-emerald-600">{destinationSummary(selectedRecipient, method.id)}</p>}
                                             </div>
                                             <div className={cn(
                                                 "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors",
@@ -381,7 +524,7 @@ export function SendMoneyWizard({ isOpen, onClose }: SendMoneyWizardProps) {
                                             </div>
                                             <div>
                                                 <p className="text-sm font-bold text-foreground">{selectedRecipient?.name}</p>
-                                                <p className="text-[10px] text-muted-foreground font-medium">{selectedRecipient?.country}</p>
+                                                <p className="text-[10px] text-muted-foreground font-medium">{selectedRecipient?.country} · {destinationSummary(selectedRecipient, transferData.deliveryMethod)}</p>
                                             </div>
                                         </div>
                                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{transferData.deliveryMethod}</p>
@@ -441,7 +584,7 @@ export function SendMoneyWizard({ isOpen, onClose }: SendMoneyWizardProps) {
                         {step < 4 ? (
                             <Button
                                 onClick={() => setStep(step + 1)}
-                                disabled={step === 1 && !selectedRecipientId}
+                                disabled={(step === 1 && !selectedRecipientId) || (step === 2 && !availableDeliveryMethods.some((method) => method.id === transferData.deliveryMethod)) || (step === 3 && !(parseFloat(transferData.amount) > 0))}
                                 className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold h-11 px-6 rounded-xl group transition-all"
                             >
                                 Next Step

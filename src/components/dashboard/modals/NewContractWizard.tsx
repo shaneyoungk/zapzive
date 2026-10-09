@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateContract } from "@/hooks/use-escrow";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, ChevronRight, ChevronLeft, Loader2, Shield, Calendar, DollarSign, Text, Link, Copy, Check } from "lucide-react";
+import { Plus, Trash2, ChevronRight, Loader2, Shield, Calendar, DollarSign, Link, Copy, Check, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -84,8 +84,26 @@ export function NewContractWizard({ isOpen, onClose }: NewContractWizardProps) {
     };
 
     const totalAmount = milestones.reduce((sum, m) => sum + (parseFloat(m.amount) || 0), 0);
+    const hasValidContractBasics = Boolean(
+        contractData.title.trim() &&
+        contractData.description.trim() &&
+        contractData.client.trim() &&
+        contractData.contractor.trim() &&
+        contractData.startDate &&
+        contractData.endDate &&
+        new Date(contractData.endDate) >= new Date(contractData.startDate)
+    );
+    const hasValidMilestones = milestones.every((milestone) => Boolean(
+        milestone.title.trim() &&
+        milestone.description.trim() &&
+        milestone.dueDate &&
+        Number.isFinite(Number(milestone.amount)) &&
+        Number(milestone.amount) > 0
+    ));
+    const canReview = hasValidMilestones && totalAmount > 0;
 
     const handleCreate = () => {
+        if (!hasValidContractBasics || !canReview) return;
         createContract({
             ...contractData,
             totalAmount,
@@ -146,7 +164,7 @@ export function NewContractWizard({ isOpen, onClose }: NewContractWizardProps) {
                                 ))}
                             </div>
                             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                                Step {step} of 3
+                                {step === 4 ? "Complete" : `Step ${step} of 3`}
                             </span>
                         </div>
                         <DialogTitle className="text-xl font-bold flex items-center gap-2 text-foreground">
@@ -461,16 +479,16 @@ export function NewContractWizard({ isOpen, onClose }: NewContractWizardProps) {
                             {step < 3 ? (
                                 <Button
                                     onClick={() => setStep(step + 1)}
-                                    disabled={step === 1 && (!contractData.title || !contractData.client || !contractData.contractor || !contractData.startDate || !contractData.endDate)}
+                                    disabled={step === 1 ? !hasValidContractBasics : !canReview}
                                     className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold h-11 px-6 rounded-xl group"
                                 >
-                                    Continue to Milestones
+                                    {step === 1 ? "Continue to milestones" : "Review and secure"}
                                     <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
                                 </Button>
                             ) : (
                                 <Button
                                     onClick={handleCreate}
-                                    disabled={isPending || totalAmount === 0}
+                                    disabled={isPending || !canReview}
                                     className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold h-11 px-8 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)]"
                                 >
                                     {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Shield className="w-4 h-4 mr-2" />}
@@ -478,6 +496,15 @@ export function NewContractWizard({ isOpen, onClose }: NewContractWizardProps) {
                                 </Button>
                             )}
                         </div>
+                    </div>
+                )}
+                {step < 4 && ((step === 1 && !hasValidContractBasics) || (step === 2 && !canReview)) && (
+                    <div className="flex items-center gap-2 border-t border-border/60 bg-amber-500/5 px-6 py-3 text-xs text-muted-foreground" role="status">
+                        <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+                        {step === 1
+                            ? "Complete the contract details, dates, and requirements before continuing."
+                            : "Add a title, description, due date, and positive amount for every milestone."
+                        }
                     </div>
                 )}
             </DialogContent>

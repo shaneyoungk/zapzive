@@ -1,184 +1,121 @@
-import { motion, useInView } from "framer-motion";
-import { useRef, useState } from "react";
-import { Check, Copy, ArrowRight, Terminal } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { ArrowRight, Check, Copy, Terminal } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const codeExamples = {
-  curl: `curl -X POST https://api.zapzive.network/v1/payouts \\
-  -H "Authorization: Bearer sk_live_..." \\
-  -H "Idempotency-Key: batch_2026_04_kenya" \\
-  -d '{
-    "amount": "421870.42",
-    "currency": "USDC",
-    "corridor": "USDC_KES",
-    "rail": "mpesa",
-    "recipient": {
-      "name": "Jane Doe",
-      "external_id": "worker_1042"
-    },
-    "metadata": {
-      "type": "payroll",
-      "batch": "kenya_april"
-    }
-  }'`,
-  python: `import zapzive
+  curl: `curl -X POST "$API_BASE_URL/api/payroll/batches" \\
+  -H "Authorization: Bearer $ZAPZIVE_TEST_KEY" \\
+  -H "Idempotency-Key: payroll-demo-001" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"October payroll","workerIds":["worker_1","worker_2"],"amounts":[420,650]}'`,
+  node: `const response = await fetch(API_BASE_URL + "/api/payroll/batches", {
+  method: "POST",
+  headers: {
+    Authorization: "Bearer " + ZAPZIVE_TEST_KEY,
+    "Idempotency-Key": "payroll-demo-001",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    name: "October payroll",
+    workerIds: ["worker_1", "worker_2"],
+    amounts: [420, 650]
+  })
+});`,
+  python: `import requests
 
-client = zapzive.Client("sk_live_...")
-
-payout = client.payouts.create(
-    amount="15480.00",
-    currency="USDC",
-    corridor="USDC_KES",
-    rail="mpesa",
-    recipient_id="worker_1042",
-    approvals=["finance", "compliance"]
+response = requests.post(
+    API_BASE_URL + "/api/payroll/batches",
+    headers={"Authorization": "Bearer " + ZAPZIVE_TEST_KEY},
+    json={"name": "October payroll", "workerIds": ["worker_1", "worker_2"], "amounts": [420, 650]}
 )
-
-print(f"Payout {payout.id}: {payout.status}")`,
-  node: `import zapzive from 'zapzive';
-
-const client = new zapzive('sk_live_...');
-
-const payout = await client.payouts.create({
-  amount: '2192.75',
-  currency: 'USDC',
-  corridor: 'USDC_NGN',
-  rail: 'local_bank',
-  recipientId: 'vendor_8821',
-  approvalPolicy: 'dual_authorization'
-});
-
-console.log(payout.status);`,
+print(response.json()["status"])`,
 };
 
-type Lang = keyof typeof codeExamples;
+type Language = keyof typeof codeExamples;
 
-const features = [
-  "Create payouts, escrow releases, and recipient verification flows",
-  "Webhook events for settlement, compliance, and payout status",
-  "Sandbox mode, API logs, and idempotency keys",
-  "Transaction tracking with corridor, rail, and FX metadata",
-  "Configurable approval policies for finance operations",
-  "Escrow milestone release and dispute-ready audit trails",
+const developerBenefits = [
+  "Create test keys for a workspace",
+  "Retry writes safely with an idempotency key",
+  "Receive status and error details",
+  "Copy a working request and response",
 ];
 
 export function CodeSection() {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
-  const [activeLang, setActiveLang] = useState<Lang>("node");
+  const [language, setLanguage] = useState<Language>("node");
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(codeExamples[activeLang]);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  async function copyCode() {
+    try {
+      await navigator.clipboard.writeText(codeExamples[language]);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
+  }
 
   return (
-    <section ref={ref} className="py-20 sm:py-32 lg:py-40 relative bg-transparent overflow-hidden">
-      <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none" />
+    <section id="developers" className="homepage-dark border-b border-[#2f5e50] px-6 py-24 sm:py-32">
+      <div className="homepage-frame grid items-center gap-12 lg:grid-cols-[minmax(0,.78fr)_minmax(0,1.22fr)] lg:gap-24">
+        <div>
+          <p className="homepage-eyebrow"><Terminal size={14} /> For developers</p>
+          <h2 className="homepage-title">
+            Build the payment flow<br />
+            <em>before you connect infrastructure.</em>
+          </h2>
+          <p className="homepage-copy">
+            Use test mode to create a payment, handle response states, and inspect the resulting record without sending real funds.
+          </p>
 
-      <div className="container mx-auto relative z-10 px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-24 items-center">
-          {/* Left - Text */}
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-8">
-              <Terminal className="w-4 h-4 mr-1" />
-              Developer API
-            </span>
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-8 leading-[1.1] tracking-tight">
-              Built for developers,
-              <br />
-              <span className="text-brand-400">finance teams, and operators</span>
-            </h2>
-            <p className="text-xl sm:text-2xl text-zinc-400 mb-10 leading-relaxed font-light">
-              Integrate stablecoin settlement, local cash-out, escrow, compliance events, and payout automation through one API.
-            </p>
+          <ul className="mt-9 border-y border-[#ffffff26]">
+            {developerBenefits.map((benefit) => (
+              <li key={benefit} className="flex items-center gap-3 border-b border-[#ffffff1a] py-3.5 text-sm font-medium text-[#f1efe8] last:border-b-0">
+                <Check size={16} className="shrink-0 text-[#7de0bf]" />
+                {benefit}
+              </li>
+            ))}
+          </ul>
 
-            {/* Feature list */}
-            <ul className="space-y-4 mb-12">
-              {features.map((feature) => (
-                <li key={feature} className="flex items-start gap-4 text-base text-zinc-300">
-                  <div className="mt-1 w-5 h-5 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0">
-                    <Check className="w-3 h-3 text-brand-400" />
-                  </div>
-                  {feature}
-                </li>
-              ))}
-            </ul>
+          <Link to="/docs" className="homepage-link mt-8">
+            View API documentation <ArrowRight size={16} />
+          </Link>
+        </div>
 
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button className="w-full sm:w-auto bg-white hover:bg-zinc-200 text-black font-bold h-12 px-8 rounded-lg transition-all group">
-                Get API Keys
-                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Button>
-              <Button variant="outline" className="w-full sm:w-auto border-zinc-800 bg-transparent text-zinc-400 hover:bg-zinc-900 hover:text-white hover:border-zinc-700 font-semibold h-12 px-8 rounded-lg transition-all">
-                View Docs
-              </Button>
-            </div>
-          </motion.div>
-
-          {/* Right - Code block */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div className="bg-[#0F0F10] rounded-3xl overflow-hidden border border-white/10 shadow-2xl transition-all duration-500 group">
-              {/* Tabs */}
-              <div className="flex items-center justify-between border-b border-white/5 px-6 py-4 bg-white/5">
-                <div className="flex gap-2">
-                  {(["curl", "python", "node"] as Lang[]).map((lang) => (
-                    <button
-                      key={lang}
-                      onClick={() => setActiveLang(lang)}
-                      className={`px-4 py-2 text-xs font-mono rounded-lg transition-all font-bold uppercase tracking-wide ${activeLang === lang
-                        ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
-                        }`}
-                    >
-                      {lang}
-                    </button>
-                  ))}
-                </div>
+        <div className="developer-console">
+          <div className="developer-console__toolbar">
+            <div className="flex gap-1" aria-label="Code language">
+              {(Object.keys(codeExamples) as Language[]).map((item) => (
                 <button
-                  onClick={handleCopy}
-                  className="p-2 text-zinc-500 hover:text-white transition-colors hover:bg-white/10 rounded-lg"
+                  key={item}
+                  type="button"
+                  onClick={() => setLanguage(item)}
+                  aria-pressed={language === item}
+                  className={`rounded-[7px] px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[.1em] transition-colors ${language === item ? "bg-[#7de0bf] text-[#17382d]" : "text-[#d5d4cb] hover:bg-[#ffffff12] hover:text-[#fffdf8]"}`}
                 >
-                  {copied ? <Check className="w-4 h-4 text-brand-400" /> : <Copy className="w-4 h-4" />}
+                  {item}
                 </button>
-              </div>
-
-              {/* Code */}
-              <div className="p-8 overflow-x-auto relative">
-                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
-                <pre className="text-sm leading-relaxed font-mono">
-                  <code className="text-zinc-400">
-                    {codeExamples[activeLang].split('\n').map((line, i) => (
-                      <div key={i} className="hover:bg-white/5 -mx-8 px-8 transition-colors">
-                        {line}
-                      </div>
-                    ))}
-                  </code>
-                </pre>
-              </div>
-
-              {/* Response preview */}
-              <div className="border-t border-white/5 px-8 py-5 bg-black/40">
-                <p className="text-[10px] font-mono font-bold text-zinc-500 mb-2 uppercase tracking-widest flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-brand-500" />
-                  Live Response
-                </p>
-                <code className="text-xs font-mono text-brand-400 font-medium opacity-90 block">
-                  {`{ "id": "po_1234", "status": "settlement_pending", "risk_score": 18, "webhook": "payout.updated" }`}
-                </code>
-              </div>
+              ))}
             </div>
-          </motion.div>
+            <button
+              type="button"
+              onClick={() => void copyCode()}
+              aria-label="Copy code example"
+              className="flex shrink-0 items-center gap-2 rounded-[7px] px-2 py-1.5 text-[#d5d4cb] transition hover:bg-[#ffffff12] hover:text-[#fffdf8]"
+            >
+              <span className="sr-only" aria-live="polite">{copied ? "Code copied" : ""}</span>
+              {copied ? <Check size={15} className="text-[#7de0bf]" /> : <Copy size={15} />}
+              <span className="hidden font-mono text-[10px] uppercase tracking-[.08em] sm:inline">{copied ? "Copied" : "Copy"}</span>
+            </button>
+          </div>
+
+          <div className="overflow-x-auto p-5 sm:p-6">
+            <pre className="min-w-[540px] font-mono text-xs leading-6 text-[#f1efe8]"><code>{codeExamples[language]}</code></pre>
+          </div>
+
+          <div className="developer-console__response">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[.12em] text-[#d5d4cb]">Example response / test mode</p>
+            <code className="mt-3 block overflow-x-auto font-mono text-xs leading-6 text-[#9ae6c9]">{`{ "batch_id": "pay_01J...", "status": "awaiting_approval", "environment": "sandbox" }`}</code>
+          </div>
         </div>
       </div>
     </section>

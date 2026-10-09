@@ -15,10 +15,10 @@ export default function MilestoneLogic() {
                     </Badge>
                     <div className="h-px flex-1 bg-gradient-to-r from-indigo-500/20 to-transparent" />
                 </div>
-                <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
+                <h1 className="text-4xl font-bold tracking-tight text-[#20211e] sm:text-5xl">
                     Milestone <span className="text-indigo-400">Logic</span>
                 </h1>
-                <p className="text-lg text-zinc-400 leading-relaxed max-w-2xl">
+                <p className="text-lg text-[#575750] leading-relaxed max-w-2xl">
                     Break down complex projects into verifiable payment triggers. Use multi-sig or oracle-based release conditions.
                 </p>
             </div>
@@ -28,21 +28,21 @@ export default function MilestoneLogic() {
             </DocCallout>
 
             {/* --- ENDPOINT: ADD MILESTONE --- */}
-            <section className="space-y-6 pt-12 border-t border-white/5">
+            <section className="space-y-6 pt-12 border-t border-[#d9d6cd]">
                 <div className="flex items-center gap-3 mb-4">
-                    <Badge className="bg-emerald-500/10 text-emerald-400 py-1 px-3 border border-emerald-500/20 font-mono text-[10px]">POST</Badge>
-                    <code className="text-lg font-mono text-white">/v1/escrow/contracts/:id/milestones</code>
+                    <Badge className="bg-emerald-500/10 text-[#087f5b] py-1 px-3 border border-emerald-500/20 font-mono text-[10px]">POST</Badge>
+                    <code className="text-lg font-mono text-[#20211e]">/api/escrow/contracts/:id/milestones</code>
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
                     <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-white">Add/Append Milestone</h2>
-                        <p className="text-zinc-400 text-sm">
+                        <h2 className="text-2xl font-bold text-[#20211e]">Add/Append Milestone</h2>
+                        <p className="text-[#575750] text-sm">
                             Define a new milestone for an existing contract. Requires approval from all signers.
                         </p>
 
                         <div className="space-y-4">
-                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Response Codes</h3>
+                            <h3 className="text-xs font-bold text-[#77766e] uppercase tracking-widest">Response Codes</h3>
                             <div className="space-y-2">
                                 <ResponseCode code="201 Created" desc="Milestone proposal submitted." color="emerald" />
                                 <ResponseCode code="403 Forbidden" desc="Contract is already locked." color="zinc" />
@@ -53,7 +53,7 @@ export default function MilestoneLogic() {
                     <div className="space-y-4">
                         <CodeWindow
                             title="add-milestone.bash"
-                            code={`curl https://api.zapzive.com/v1/escrow/contracts/esc_123/milestones \\
+                            code={`curl https://your-api.example.com/api/escrow/contracts/esc_123/milestones \\
   -d title="Frontend V2 completion" \\
   -d amount=400000 \\
   -d validator_id="vld_992"`}
@@ -63,21 +63,21 @@ export default function MilestoneLogic() {
             </section>
 
             {/* --- ENDPOINT: APPROVE RELEASE --- */}
-            <section className="space-y-6 pt-12 border-t border-white/5">
+            <section className="space-y-6 pt-12 border-t border-[#d9d6cd]">
                 <div className="flex items-center gap-3 mb-4">
-                    <Badge className="bg-blue-500/10 text-blue-400 py-1 px-3 border border-blue-500/20 font-mono text-[10px]">POST</Badge>
-                    <code className="text-lg font-mono text-white">/v1/escrow/milestones/:id/approve</code>
+                    <Badge className="bg-blue-500/10 text-[#087f5b] py-1 px-3 border border-blue-500/20 font-mono text-[10px]">POST</Badge>
+                    <code className="text-lg font-mono text-[#20211e]">/api/escrow/milestones/:id/approve</code>
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
                     <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-white">Approve Milestone</h2>
-                        <p className="text-zinc-400 text-sm">
+                        <h2 className="text-2xl font-bold text-[#20211e]">Approve Milestone</h2>
+                        <p className="text-[#575750] text-sm">
                             Cast a vote to approve the release of funds for a specific milestone.
                         </p>
 
                         <div className="space-y-4">
-                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Response Codes</h3>
+                            <h3 className="text-xs font-bold text-[#77766e] uppercase tracking-widest">Response Codes</h3>
                             <div className="space-y-2">
                                 <ResponseCode code="200 OK" desc="Approval logged. Funds released if threshold met." color="blue" />
                             </div>
@@ -87,7 +87,7 @@ export default function MilestoneLogic() {
                     <div className="space-y-4">
                         <CodeWindow
                             title="approve-milestone.bash"
-                            code={`curl https://api.zapzive.com/v1/escrow/milestones/ms_771/approve \\
+                            code={`curl https://your-api.example.com/api/escrow/milestones/ms_771/approve \\
   -d signature="0x9a2b..."`}
                         />
                     </div>
@@ -95,14 +95,14 @@ export default function MilestoneLogic() {
             </section>
 
             {/* Visualizer */}
-            <div className="p-8 rounded-3xl bg-zinc-900/50 border border-white/5 space-y-6">
-                <h3 className="text-xl font-bold text-white">Milestone Lifecycle</h3>
+            <div className="p-8 rounded-3xl bg-[#f5f3ee]/50 border border-[#d9d6cd] space-y-6">
+                <h3 className="text-xl font-bold text-[#20211e]">Milestone Lifecycle</h3>
                 <div className="flex items-center gap-4">
-                    <div className="px-3 py-1.5 rounded-lg bg-zinc-800 text-[10px] font-bold text-zinc-400">PROPOSED</div>
-                    <ArrowRightLeft className="w-4 h-4 text-zinc-700" />
-                    <div className="px-3 py-1.5 rounded-lg bg-blue-500/20 text-[10px] font-bold text-blue-400">SIGNING</div>
-                    <ArrowRightLeft className="w-4 h-4 text-zinc-700" />
-                    <div className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-[10px] font-bold text-emerald-400">RELEASED</div>
+                    <div className="px-3 py-1.5 rounded-lg bg-[#f5f3ee] text-[10px] font-bold text-[#575750]">PROPOSED</div>
+                    <ArrowRightLeft className="w-4 h-4 text-[#77766e]" />
+                    <div className="px-3 py-1.5 rounded-lg bg-blue-500/20 text-[10px] font-bold text-[#087f5b]">SIGNING</div>
+                    <ArrowRightLeft className="w-4 h-4 text-[#77766e]" />
+                    <div className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-[10px] font-bold text-[#087f5b]">RELEASED</div>
                 </div>
             </div>
         </div>
@@ -111,10 +111,10 @@ export default function MilestoneLogic() {
 
 function ResponseCode({ code, desc, color }: { code: string; desc: string; color: "emerald" | "blue" | "red" | "zinc" }) {
     const colorClasses = {
-        emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-        blue: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-        red: "bg-red-500/10 text-red-400 border-red-500/20",
-        zinc: "bg-white/5 text-zinc-400 border-white/10"
+        emerald: "bg-emerald-500/10 text-[#087f5b] border-emerald-500/20",
+        blue: "bg-blue-500/10 text-[#087f5b] border-blue-500/20",
+        red: "bg-red-500/10 text-[#9b463c] border-red-500/20",
+        zinc: "bg-[#f5f3ee] text-[#575750] border-[#cdd8c8]"
     };
 
     return (

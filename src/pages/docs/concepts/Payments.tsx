@@ -1,81 +1,25 @@
-import { Badge } from "@/components/ui/badge";
-import { ArrowRight, DollarSign, Globe2, Repeat } from "lucide-react";
+import { ArrowDown, ArrowRight, CheckCircle2, CircleDollarSign, FileCheck2, Landmark, LockKeyhole, MapPin, ShieldCheck } from "lucide-react";
+import { CodeWindow } from "@/components/docs/CodeWindow";
+import { DocCallout } from "@/components/docs/DocCallout";
+
+const lifecycle = [
+  { number: "01", icon: CircleDollarSign, title: "Fund", label: "Balance allocated", description: "Confirm the source balance and reserve the amount required for the sandbox instruction." },
+  { number: "02", icon: ShieldCheck, title: "Approve", label: "Policy checked", description: "Run the role and approval rules before the instruction can move to execution." },
+  { number: "03", icon: LockKeyhole, title: "Quote and settle", label: "State recorded", description: "Review the source asset, test quote, fee, destination amount, and idempotency reference." },
+  { number: "04", icon: MapPin, title: "Deliver locally", label: "Method selected", description: "Attach the destination currency and sandbox delivery method, such as a local payout rail." },
+  { number: "05", icon: FileCheck2, title: "Reconcile", label: "Record complete", description: "Keep the movement reference, resulting state, and audit context together for review." },
+];
 
 export default function PaymentsConcept() {
-    return (
-        <div className="space-y-16 max-w-5xl">
-            <section className="space-y-6">
-                <h1 className="text-4xl font-bold text-white tracking-tight">Understanding Payments</h1>
-                <p className="text-xl text-zinc-400 leading-relaxed max-w-3xl">
-                    zapzive breaks down international boundaries by transforming a complex sequence of local clearing events
-                    into a simple, unified API request.
-                </p>
-            </section>
+  return <div className="pb-24">
+    <header className="border-b border-[#d9d6cd] pb-12"><p className="mono-label text-[#087f5b]">Concepts · Payment lifecycle</p><h1 className="mt-5 text-5xl sm:text-6xl">A payment is a sequence of accountable states.</h1><p className="mt-6 max-w-2xl text-lg leading-8 text-[#575750]">Zapzive keeps funding, approval, settlement, local delivery, and reconciliation visible as one connected sandbox record.</p></header>
 
-            {/* Lifecycle */}
-            <section className="space-y-10">
-                <h2 className="text-2xl font-bold text-white">Payment Lifecycle</h2>
-                <div className="relative">
-                    {/* Visual Line */}
-                    <div className="absolute left-8 top-0 bottom-0 w-px bg-zinc-800 hidden md:block" />
+    <section className="mt-14" aria-labelledby="lifecycle-heading"><div className="flex flex-col justify-between gap-4 border-b border-[#d9d6cd] pb-7 sm:flex-row sm:items-end"><div><p className="mono-label text-[#087f5b]">Payment lifecycle</p><h2 id="lifecycle-heading" className="mt-3 text-3xl">From instruction to audit record.</h2></div><p className="max-w-sm text-sm leading-6 text-[#77766e]">Every step below is simulated in the current sandbox.</p></div><div className="mt-8 divide-y divide-[#d9d6cd] border-y border-[#d9d6cd]">{lifecycle.map(({ number, icon: Icon, title, label, description }, index) => <article key={title} className="relative grid gap-5 py-7 md:grid-cols-[72px_1fr_auto] md:items-start md:gap-8"><div className="flex items-center gap-3 md:block"><span className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#cdd8c8] bg-[#e8eee4] text-[#087f5b]"><Icon size={19} strokeWidth={1.7} /></span><span className="font-mono text-[10px] text-[#aaa9a1] md:mt-3 md:block">{number}</span></div><div><h3 className="text-xl font-semibold tracking-[-.04em]">{title}</h3><p className="mt-2 max-w-2xl text-sm leading-6 text-[#575750]">{description}</p></div><span className="w-fit rounded-full border border-[#b9d9cc] bg-[#e8f4ef] px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-[.08em] text-[#087f5b]">{label}</span>{index < lifecycle.length - 1 && <ArrowDown size={14} className="absolute -bottom-2 left-[18px] z-10 hidden bg-[#f5f3ee] text-[#087f5b] md:block" />}</article>)}</div><div className="mt-5 flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between"><span className="inline-flex items-center gap-2 text-[#575750]"><CheckCircle2 size={15} className="text-[#087f5b]" /> Sandbox record complete</span><span className="font-mono text-[10px] uppercase tracking-[.1em] text-[#77766e]">Example · USDC → KES local payout</span></div></section>
 
-                    <div className="space-y-12">
-                        <LifecycleStep
-                            title="Source Authorization"
-                            status="Authorized"
-                            desc="Funds are verified and locked in the sender's account. This happens instantly for Stablecoin sources."
-                        />
-                        <LifecycleStep
-                            title="Liquidity Provisioning"
-                            status="Exchanging"
-                            desc="zapzive sources liquidity for the destination currency. We use a hybrid of local fiat reserves and on-chain liquidity."
-                        />
-                        <LifecycleStep
-                            title="Local Settlement"
-                            status="Settled"
-                            desc="Funds are disbursed via local rails (e.g., SEPA in Europe, PIX in Brazil, NIP in Nigeria)."
-                        />
-                    </div>
-                </div>
-            </section>
+    <DocCallout type="info" title="Sandbox behavior is synchronous">A successful create response means the sandbox balance and movement record were committed together. Provider-backed production rails may be asynchronous; reconcile their final signed event before marking a recipient as paid.</DocCallout>
 
-            {/* CORRIDORS */}
-            <section className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-20">
-                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
-                    <Globe2 className="w-6 h-6 text-emerald-400" />
-                    <h3 className="text-lg font-bold text-white">Global Corridors</h3>
-                    <p className="text-sm text-zinc-500 leading-relaxed">
-                        We support 180+ countries. For major corridors (USD-NGN, EUR-USD, GBP-PHP),
-                        settlement is near-instant (under 5 minutes).
-                    </p>
-                </div>
-                <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
-                    <Repeat className="w-6 h-6 text-blue-400" />
-                    <h3 className="text-lg font-bold text-white">Idempotency-First</h3>
-                    <p className="text-sm text-zinc-500 leading-relaxed">
-                        Every payment on our platform requires an Idempotency-Key. If your network fails,
-                        you can safely retry without double-paying.
-                    </p>
-                </div>
-            </section>
-        </div>
-    );
+    <section className="mt-16 grid gap-10 lg:grid-cols-[.8fr_1.2fr] lg:items-start"><div><p className="mono-label text-[#087f5b]">Create the instruction</p><h2 className="mt-3 text-3xl">Send once. Retry safely.</h2><p className="mt-4 text-base leading-7 text-[#575750]">Include an idempotency key with every money-moving request. If the network drops after submission, retrying the same key returns the original sandbox operation rather than creating a duplicate.</p><div className="mt-7 space-y-3 text-sm text-[#575750]"><p className="flex items-start gap-2"><CheckCircle2 size={15} className="mt-0.5 shrink-0 text-[#087f5b]" />Validate the recipient before creating the movement.</p><p className="flex items-start gap-2"><CheckCircle2 size={15} className="mt-0.5 shrink-0 text-[#087f5b]" />Treat the server response as authoritative for quote and state.</p><p className="flex items-start gap-2"><CheckCircle2 size={15} className="mt-0.5 shrink-0 text-[#087f5b]" />Persist the operation reference for reconciliation.</p></div></div><CodeWindow showLineNumbers language="bash" title="Create a sandbox payment" code={'curl https://your-api.example.com/api/remittance -H "Authorization: Bearer sk_test_..." -H "Idempotency-Key: remittance_001" -H "Content-Type: application/json" -d "{recipientId: recipient_id_001, amount: 25, currency: USDC, localCurrency: KES}"'} /></section>
+
+    <section className="mt-16 border-t border-[#d9d6cd] pt-12"><div className="flex items-start gap-3"><Landmark size={19} className="mt-1 text-[#087f5b]" /><div><p className="mono-label text-[#087f5b]">Read the record</p><h2 className="mt-3 text-3xl">A movement should explain itself.</h2><p className="mt-4 max-w-2xl text-base leading-7 text-[#575750]">The useful result is not only a paid or failed label. It is the source asset, destination context, recipient, approvals, reference, amount, fee, and final state needed by the operator who reviews it later.</p><a href="/docs/api/remittance" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[#087f5b]">Open remittance API <ArrowRight size={15} /></a></div></div></section>
+  </div>;
 }
-
-function LifecycleStep({ title, status, desc }: { title: string; status: string; desc: string }) {
-    return (
-        <div className="flex flex-col md:flex-row gap-6 md:gap-16 items-start">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 z-10 relative">
-                <DollarSign className="w-6 h-6" />
-            </div>
-            <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                    <h3 className="text-xl font-bold text-white">{title}</h3>
-                    <Badge variant="outline" className="text-[10px] uppercase border-white/10 text-zinc-500">{status}</Badge>
-                </div>
-                <p className="text-zinc-400 max-w-2xl text-sm leading-relaxed">{desc}</p>
-            </div>
-        </div>
-    );
-}
-

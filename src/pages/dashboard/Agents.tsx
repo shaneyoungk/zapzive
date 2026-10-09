@@ -1,129 +1,57 @@
-import { useState } from "react";
-import {
-    MapPin,
-    Users,
-    DollarSign,
-    TrendingUp,
-    Search,
-    Filter,
-    CheckCircle2,
-    Clock,
-    Star,
-    Phone,
-    Mail,
-} from "lucide-react";
+import { ArrowRight, Building2, CheckCircle2, MapPin, Radio, Smartphone } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import MetricCard from "@/components/dashboard/MetricCard";
-import InfoTooltip from "@/components/dashboard/InfoTooltip";
-import StatusBadge from "@/components/dashboard/StatusBadge";
-import DetailPanel from "@/components/dashboard/DetailPanel";
-import { motion } from "framer-motion";
-import { useAgents } from "@/hooks/use-agents";
 
-interface Agent {
-    id: string;
-    name: string;
-    location: string;
-    country: string;
-    status: "active" | "inactive" | "pending";
-    rating: number;
-    totalPayouts: number;
-    completedTransactions: number;
-    pendingPayouts: number;
-    phone: string;
-    email: string;
-    joinedDate: string;
-}
-
-// Mocks removed
+const capabilities = [
+    { icon: Smartphone, title: "Mobile money", description: "Route payouts to supported mobile wallets with delivery confirmation." },
+    { icon: Building2, title: "Bank settlement", description: "Use verified local banking partners for account-based delivery." },
+    { icon: MapPin, title: "Cash pickup", description: "Coordinate compliant cash collection through approved locations." },
+];
 
 export default function Agents() {
-    const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [statusFilter, setStatusFilter] = useState<string>("all");
-
-    const { data: allAgents = [], isLoading } = useAgents();
-
-    const filteredAgents = allAgents.filter((agent: Agent) => {
-        const matchesSearch =
-            agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            agent.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            agent.country.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            agent.id.toLowerCase().includes(searchQuery.toLowerCase());
-
-        const matchesStatus = statusFilter === "all" || agent.status === statusFilter;
-
-        return matchesSearch && matchesStatus;
-    });
-
-    const activeAgents = allAgents.filter((a: Agent) => a.status === "active").length;
-    const totalPayouts = allAgents.reduce((sum: number, a: Agent) => sum + a.totalPayouts, 0);
-    const totalTransactions = allAgents.reduce((sum: number, a: Agent) => sum + a.completedTransactions, 0);
-
-    const ratedAgents = allAgents.filter((a: Agent) => a.rating > 0);
-    const avgRating = ratedAgents.length > 0
-        ? ratedAgents.reduce((sum: number, a: Agent) => sum + a.rating, 0) / ratedAgents.length
-        : 0;
+    const navigate = useNavigate();
 
     return (
-        <div className="relative min-h-[70vh] flex flex-col items-center justify-center overflow-hidden rounded-3xl">
-            {/* Background Aesthetics */}
-            <div className="absolute inset-0 bg-[#0A0A0A] overflow-hidden rounded-3xl border border-white/10">
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-30 brightness-100 contrast-150 mix-blend-overlay pointer-events-none" />
-                <div className="absolute -top-48 -left-48 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none" />
-                <div className="absolute -bottom-48 -right-48 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[120px] pointer-events-none" />
-            </div>
-
-            {/* Content */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                className="relative z-10 flex flex-col items-center text-center px-6"
-            >
-                <div className="mb-6 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/5 border border-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-widest">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse" />
-                    Feature in Development
-                </div>
-
-                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-zinc-800 to-black flex items-center justify-center border border-white/10 shadow-2xl mb-8 group transition-all duration-500 hover:scale-110 hover:border-emerald-500/30">
-                    <Users className="w-10 h-10 text-emerald-500 group-hover:scale-110 transition-transform duration-500" />
-                </div>
-
-                <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tighter mb-4">
-                    Global Agent <span className="text-zinc-500 italic">Network</span>
-                </h1>
-
-                <p className="text-zinc-400 text-lg max-w-lg font-light leading-relaxed mb-10">
-                    We're building the infrastructure for instant on/off-ramp liquidity. Our global agent network will support cash-out settlements in 180+ countries.
-                </p>
-
-                <div className="flex flex-wrap items-center justify-center gap-4">
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 backdrop-blur-md">
-                        <MapPin className="w-4 h-4 text-emerald-500" />
-                        <span className="text-sm font-medium text-zinc-300">180+ Countries</span>
-                    </div>
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 backdrop-blur-md">
-                        <DollarSign className="w-4 h-4 text-emerald-500" />
-                        <span className="text-sm font-medium text-zinc-300">Instant Settlement</span>
-                    </div>
-                </div>
-
-                <div className="mt-16 pt-8 border-t border-white/5 w-full max-w-sm">
-                    <div className="flex items-center justify-center gap-8 text-zinc-600">
-                        <div className="flex flex-col items-center">
-                            <span className="text-xs font-bold uppercase tracking-[0.2em] mb-1">Status</span>
-                            <span className="text-zinc-500 font-mono text-sm tracking-tight">Institutional Beta</span>
+        <div className="space-y-6">
+            <section className="premium-card overflow-hidden">
+                <div className="grid lg:grid-cols-[1.15fr_.85fr]">
+                    <div className="p-7 sm:p-9 lg:p-12">
+                        <span className="status-chip"><Radio className="h-3 w-3" /> Institutional beta</span>
+                        <p className="dashboard-eyebrow mt-9">Local payout network</p>
+                        <h1 className="mt-3 max-w-2xl text-4xl sm:text-5xl">Local delivery, managed from one workspace.</h1>
+                        <p className="mt-5 max-w-xl text-base leading-7 text-[#575750]">The agent network extends Zapzive settlement into supported bank, mobile-money, and cash-out corridors with the operational record attached.</p>
+                        <div className="mt-8 flex flex-wrap items-center gap-3">
+                            <Button onClick={() => navigate("/contact")}>Join the beta <ArrowRight className="h-4 w-4" /></Button>
+                            <Button variant="outline" onClick={() => navigate("/docs")}>Read integration guide</Button>
                         </div>
-                        <div className="h-8 w-px bg-white/5" />
-                        <div className="flex flex-col items-center">
-                            <span className="text-xs font-bold uppercase tracking-[0.2em] mb-1">ETA</span>
-                            <span className="text-zinc-500 font-mono text-sm tracking-tight">Q1 2026</span>
+                    </div>
+                    <div className="border-t border-[#d9d6cd] bg-[#e8eee4] p-7 sm:p-9 lg:border-l lg:border-t-0 lg:p-12">
+                        <p className="metric-label">Rollout readiness</p>
+                        <div className="mt-7 space-y-5">
+                            {["Partner due diligence", "Payout status webhooks", "Settlement reconciliation"].map((item, index) => (
+                                <div key={item} className="flex items-center gap-3 border-b border-[#cdd8c8] pb-5 last:border-0 last:pb-0">
+                                    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#b9d9cc] bg-[#fffdf8] font-mono text-[9px] text-[#087f5b]">0{index + 1}</span>
+                                    <span className="flex-1 text-sm font-semibold text-[#20211e]">{item}</span>
+                                    <CheckCircle2 className="h-4 w-4 text-[#087f5b]" />
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
-            </motion.div>
+            </section>
+
+            <section>
+                <div className="mb-4"><p className="dashboard-eyebrow">Coverage model</p><h2 className="mt-2 text-2xl">Three local delivery paths.</h2></div>
+                <div className="grid gap-4 md:grid-cols-3">
+                    {capabilities.map(({ icon: Icon, title, description }) => (
+                        <article key={title} className="premium-card p-6">
+                            <span className="dashboard-icon h-10 w-10"><Icon className="h-[18px] w-[18px]" /></span>
+                            <h3 className="mt-7 text-lg">{title}</h3>
+                            <p className="mt-3 text-sm leading-6 text-[#77766e]">{description}</p>
+                        </article>
+                    ))}
+                </div>
+            </section>
         </div>
     );
 }

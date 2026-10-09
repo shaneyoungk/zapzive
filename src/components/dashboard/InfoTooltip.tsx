@@ -17,7 +17,7 @@ export default function InfoTooltip({ content, className }: InfoTooltipProps) {
             <Tooltip>
                 <TooltipTrigger asChild>
                     <button
-                        className={`inline-flex items-center justify-center w-4 h-4 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-zinc-500 hover:text-zinc-300 transition-all duration-200 ${className}`}
+                        className={`inline-flex h-4 w-4 items-center justify-center rounded-full border border-[#d9d6cd] bg-[#fffdf8] text-[#77766e] transition-colors hover:border-[#b9d9cc] hover:text-[#087f5b] ${className}`}
                         onClick={(e) => e.stopPropagation()}
                     >
                         <Info className="w-3 h-3" />
@@ -25,7 +25,7 @@ export default function InfoTooltip({ content, className }: InfoTooltipProps) {
                 </TooltipTrigger>
                 <TooltipContent
                     side="top"
-                    className="max-w-xs bg-zinc-900 border-white/[0.12] text-zinc-200 text-xs px-3 py-2"
+                    className="max-w-xs border-[#3d3d36] bg-[#20211e] px-3 py-2 text-xs leading-5 text-[#f5f3ee]"
                 >
                     <p>{content}</p>
                 </TooltipContent>

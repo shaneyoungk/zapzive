@@ -1,98 +1,34 @@
-import { motion } from "framer-motion";
-import { useState } from "react";
-import { Send, Mail, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, CheckCircle2, Mail, MapPin } from "lucide-react";
+import { FormEvent, useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import DarkVeil from "@/components/ui/DarkVeil";
+
+type FormValues = { firstName: string; lastName: string; email: string; brief: string };
+const initialValues: FormValues = { firstName: "", lastName: "", email: "", brief: "" };
 
 export default function Contact() {
-    return (
-        <div className="min-h-screen relative selection:bg-accent/30">
-            {/* Dynamic Background */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <DarkVeil
-                    hueShift={160}
-                    noiseIntensity={0.02}
-                    scanlineIntensity={0.05}
-                    speed={0.2}
-                    scanlineFrequency={0.8}
-                    warpAmount={0.15}
-                />
-            </div>
+  const [values, setValues] = useState(initialValues);
+  const [errors, setErrors] = useState<Partial<Record<keyof FormValues, string>>>({});
+  const [submitted, setSubmitted] = useState(false);
 
-            <div className="relative z-10">
-                <Navbar />
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const next: typeof errors = {};
+    if (!values.firstName.trim()) next.firstName = "Enter your first name.";
+    if (!values.lastName.trim()) next.lastName = "Enter your last name.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) next.email = "Enter a valid work email.";
+    if (values.brief.trim().length < 20) next.brief = "Add at least 20 characters about the workflow.";
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
+    localStorage.setItem("zapzive-contact-brief", JSON.stringify({ ...values, savedAt: new Date().toISOString() }));
+    setSubmitted(true);
+  }
 
-                <main className="pt-40 pb-20">
-                    <div className="container mx-auto px-6 lg:px-8">
-                        <div className="grid lg:grid-cols-2 gap-16 lg:gap-24">
-                            {/* Left Info */}
-                            <div>
-                                <h1 className="text-5xl lg:text-7xl font-extrabold mb-8 text-zinc-50">
-                                    Get in <span className="text-gradient">touch</span>
-                                </h1>
-                                <p className="text-xl text-muted-foreground mb-12">
-                                    Have questions about integrations, pricing, or regulations?
-                                    Our team is ready to help.
-                                </p>
+  function update(field: keyof FormValues, value: string) { setValues(current => ({ ...current, [field]: value })); setSubmitted(false); }
 
-                                <div className="space-y-8 mb-12">
-                                    <div className="flex items-start gap-6">
-                                        <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-                                            <Mail className="w-6 h-6 text-white" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-extrabold text-lg mb-1 text-zinc-50">Email us</h3>
-                                            <p className="text-muted-foreground mb-1">hello@zapzive.network</p>
-                                            <p className="text-muted-foreground">partners@zapzive.network</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-6">
-                                        <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-                                            <MapPin className="w-6 h-6 text-white" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-extrabold text-lg mb-1 text-zinc-50">Visit us</h3>
-                                            <p className="text-muted-foreground mb-1">123 Blockchain Blvd, Crypto Valley</p>
-                                            <p className="text-muted-foreground">Lagos, Nigeria (HQ)</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Form Card */}
-                            <div className="bg-gradient-to-br from-[#111] via-[#050505] to-black p-8 lg:p-12 rounded-[3rem] border border-zinc-700/50 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.8)]">
-                                <form className="space-y-6">
-                                    <div className="grid grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-bold ml-1">First Name</label>
-                                            <input type="text" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors" placeholder="John" />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-bold ml-1">Last Name</label>
-                                            <input type="text" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors" placeholder="Doe" />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-bold ml-1">Email</label>
-                                        <input type="email" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors" placeholder="john@company.com" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-bold ml-1">Message</label>
-                                        <textarea className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 h-32 resize-none focus:outline-none focus:border-accent transition-colors" placeholder="Tell us about your project..." />
-                                    </div>
-                                    <Button className="w-full bg-white hover:bg-zinc-200 text-black font-bold py-6 text-lg rounded-xl shadow-lg">
-                                        Send Message <Send className="w-5 h-5 ml-2" />
-                                    </Button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </main>
-                <Footer />
-            </div>
-        </div>
-    );
+  return <div className="public-page min-h-screen"><Navbar /><main className="px-6 pb-24 pt-40"><div className="homepage-frame"><div className="grid gap-14 lg:grid-cols-[.85fr_1.15fr] lg:gap-20"><section><p className="homepage-eyebrow">Start a conversation</p><h1 className="homepage-title homepage-title--wide">Tell us about the payment flow you need to <em>build.</em></h1><p className="homepage-copy">Share where money starts, where it needs to arrive, and the controls your team needs around it.</p><div className="public-contact-details"><div><Mail size={18} /><span><strong>Email</strong>hello@zapzive.network</span></div><div><MapPin size={18} /><span><strong>Product stage</strong>Test workspace · no live provider integrations</span></div></div><ul className="public-check-list">{["Integration and architecture guidance", "Workflow and corridor planning", "Test environment and API review"].map(item => <li key={item}><CheckCircle2 size={15} />{item}</li>)}</ul></section>
+      <section className="public-form"><div className="mb-8 border-b border-[#d9d6cd] pb-6"><p className="homepage-eyebrow">Project brief</p><h2>How can we help?</h2><p>Your brief is saved locally in this browser. Email is available below for a direct route.</p></div>{submitted ? <div className="border border-[#b9d9cc] bg-[#e8f4ef] p-5" role="status"><CheckCircle2 className="text-[#087f5b]" /><h3 className="mt-4 text-lg font-semibold text-[#20211e]">Brief saved</h3><p className="mt-2 text-sm leading-6 text-[#575750]">Your project brief is saved in this browser for review. For a direct response, email hello@zapzive.network with the same context.</p><button type="button" onClick={() => { setValues(initialValues); setSubmitted(false); }} className="mt-5 text-sm font-semibold text-[#087f5b] underline underline-offset-4">Send another brief</button></div> : <form onSubmit={submit} noValidate className="space-y-5"><div className="grid gap-5 sm:grid-cols-2"><Field id="firstName" label="First name" value={values.firstName} onChange={value => update("firstName", value)} error={errors.firstName} /><Field id="lastName" label="Last name" value={values.lastName} onChange={value => update("lastName", value)} error={errors.lastName} /></div><Field id="email" label="Work email" type="email" value={values.email} onChange={value => update("email", value)} error={errors.email} /><div><label htmlFor="brief" className="mb-2 block text-sm font-medium text-[#20211e]">What are you looking to build?</label><textarea id="brief" value={values.brief} onChange={event => update("brief", event.target.value)} aria-invalid={Boolean(errors.brief)} aria-describedby={errors.brief ? "brief-error" : undefined} className="min-h-36 w-full resize-none rounded-lg border border-[#d9d6cd] bg-[#f5f3ee] px-4 py-3 text-[#20211e] outline-none transition placeholder:text-[#aaa9a1] focus:border-[#11a879] focus:ring-4 focus:ring-[#11a87912]" placeholder="Share the workflow, corridors, controls, and timeline." />{errors.brief && <p id="brief-error" className="mt-1.5 text-sm text-[#9a3535]">{errors.brief}</p>}</div><button type="submit" className="public-button public-button--wide">Save project brief <ArrowRight size={16} /></button></form>}</section>
+    </div></div></main><Footer /></div>;
 }
 
+function Field({ id, label, value, onChange, error, type = "text" }: { id: string; label: string; value: string; onChange: (value: string) => void; error?: string; type?: string }) { return <div><label htmlFor={id} className="mb-2 block text-sm font-medium text-[#20211e]">{label}</label><input id={id} type={type} value={value} onChange={event => onChange(event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : undefined} className="h-12 w-full rounded-lg border border-[#d9d6cd] bg-[#f5f3ee] px-4 text-[#20211e] outline-none transition placeholder:text-[#aaa9a1] focus:border-[#11a879] focus:ring-4 focus:ring-[#11a87912]" />{error && <p id={`${id}-error`} className="mt-1.5 text-sm text-[#9a3535]">{error}</p>}</div>; }

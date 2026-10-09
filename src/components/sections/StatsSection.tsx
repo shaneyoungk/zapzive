@@ -55,7 +55,7 @@ function AnimatedCounter({
   };
 
   return (
-    <span className="stat-value text-5xl sm:text-6xl lg:text-7xl text-white">
+    <span className="stat-value whitespace-nowrap text-[clamp(2.5rem,4vw,4rem)] text-[#f5f3ee]">
       {prefix}{formatValue(count)}{suffix}
     </span>
   );
@@ -77,10 +77,10 @@ export function StatsSection() {
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           className="text-center mb-20"
         >
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6">
-            Built for <span className="text-brand-400">scale</span>
+          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-semibold !text-[#f5f3ee] mb-6 tracking-[-.06em]">
+            Built for <span className="text-[#11a879]">scale</span>
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg sm:text-xl text-[#aaa9a1] max-w-2xl mx-auto leading-relaxed">
             Targeting the high-volume Kenya-Nigeria corridor first, then expanding across Africa, LATAM, and Asia.
           </p>
         </motion.div>
@@ -101,10 +101,10 @@ export function StatsSection() {
                 format={stat.format}
                 isInView={isInView}
               />
-              <p className="text-muted-foreground text-base mt-4 font-semibold uppercase tracking-wider">
+              <p className="text-[#c8c7c0] text-sm mt-4 font-semibold uppercase tracking-[.08em]">
                 {stat.label}
               </p>
-              <p className="text-zinc-500 text-sm mt-3 leading-relaxed max-w-xs mx-auto">
+              <p className="text-[#8f8f88] text-sm mt-3 leading-relaxed max-w-xs mx-auto">
                 {stat.context}
               </p>
             </motion.div>

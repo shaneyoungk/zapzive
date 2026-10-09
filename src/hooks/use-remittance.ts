@@ -66,8 +66,15 @@ export function useAddRecipient() {
 
     return useMutation({
         mutationFn: (data: any) => apiClient.addRecipient(data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['recipients'] });
+        onSuccess: (recipient) => {
+            // The wizard selects this recipient immediately after saving. Put
+            // the server response in the cache first so step two cannot race a
+            // background refetch and lose the selected payout destination.
+            queryClient.setQueryData(['recipients'], (current: unknown) => {
+                const rows = Array.isArray(current) ? current : [];
+                return [recipient, ...rows.filter((row: any) => row?.id !== recipient?.id)];
+            });
+            void queryClient.invalidateQueries({ queryKey: ['recipients'] });
             toast.success('Recipient added successfully');
         },
         onError: (error: any) => {

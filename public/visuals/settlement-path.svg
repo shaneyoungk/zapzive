@@ -1,0 +1,32 @@
+<svg width="920" height="190" viewBox="0 0 920 190" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Payment lifecycle path</title>
+  <desc id="desc">A five-step path from funding through approval, settlement, delivery, and reconciliation.</desc>
+  <defs>
+    <linearGradient id="path" x1="50" y1="95" x2="870" y2="95" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#087F5B"/>
+      <stop offset="1" stop-color="#11A879"/>
+    </linearGradient>
+  </defs>
+  <path d="M76 95H844" stroke="#CDD8C8" stroke-width="2" stroke-linecap="round"/>
+  <path d="M76 95H844" stroke="url(#path)" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 10"/>
+  <g fill="#FFFDF8" stroke="#087F5B" stroke-width="2">
+    <circle cx="76" cy="95" r="27"/><circle cx="268" cy="95" r="27"/><circle cx="460" cy="95" r="27"/><circle cx="652" cy="95" r="27"/><circle cx="844" cy="95" r="27"/>
+  </g>
+  <g fill="#E8F4EF">
+    <circle cx="76" cy="95" r="17"/><circle cx="268" cy="95" r="17"/><circle cx="460" cy="95" r="17"/><circle cx="652" cy="95" r="17"/><circle cx="844" cy="95" r="17"/>
+  </g>
+  <g stroke="#087F5B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M67 96H85M71 90H81L84 95L81 100H71"/>
+    <path d="M260 94L266 100L277 88M258 104H278"/>
+    <path d="M460 83L452 97H460L456 108L469 92H461L466 83H460Z"/>
+    <path d="M645 88H659V102H645V88ZM649 84V88M655 84V88"/>
+    <path d="M837 94L843 100L854 88M836 105H854"/>
+  </g>
+  <g fill="#77766E" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="1.2">
+    <text x="76" y="153" text-anchor="middle">FUND</text>
+    <text x="268" y="153" text-anchor="middle">APPROVE</text>
+    <text x="460" y="153" text-anchor="middle">SETTLE</text>
+    <text x="652" y="153" text-anchor="middle">DELIVER</text>
+    <text x="844" y="153" text-anchor="middle">RECONCILE</text>
+  </g>
+</svg>

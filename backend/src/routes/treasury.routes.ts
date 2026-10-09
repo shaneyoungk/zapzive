@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authMiddleware, AuthRequest } from '../middleware/auth.middleware';
+import { ApiError, audit, executeIdempotent, parseBoundedLimit, parsePositiveAmount, requiredText, sandboxReference, sendApiError } from '../lib/security';
 
 const router = Router();
 
@@ -12,12 +13,13 @@ router.get('/assets', async (req: AuthRequest, res: Response) => {
     try {
         const assets = await prisma.asset.findMany({
             where: { companyId: req.companyId },
+            take: parseBoundedLimit(req.query.limit, 50, 100),
             orderBy: { usdValue: 'desc' }
         });
 
         res.json(assets);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch assets' });
+        return sendApiError(res, error, 'Failed to fetch assets');
     }
 });
 
@@ -42,194 +44,178 @@ router.get('/portfolio', async (req: AuthRequest, res: Response) => {
             history
         });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch portfolio' });
+        return sendApiError(res, error, 'Failed to fetch portfolio');
     }
 });
 
 // POST /api/treasury/swap - Execute token swap
 router.post('/swap', async (req: AuthRequest, res: Response) => {
     try {
-        const { fromAsset, toAsset, fromAmount, toAmount, rate, fee } = req.body;
-        if (!fromAsset || !toAsset || fromAsset === toAsset || !Number.isFinite(Number(fromAmount)) || Number(fromAmount) <= 0 || !Number.isFinite(Number(toAmount)) || Number(toAmount) <= 0) {
-            return res.status(400).json({ error: 'Valid, distinct assets and positive amounts are required' });
-        }
+        const fromAsset = requiredText(req.body?.fromAsset, 'fromAsset', 20).toUpperCase();
+        const toAsset = requiredText(req.body?.toAsset, 'toAsset', 20).toUpperCase();
+        const parsedFromAmount = parsePositiveAmount(req.body?.fromAmount, 'fromAmount');
+        const parsedToAmount = parsePositiveAmount(req.body?.toAmount, 'toAmount');
+        const parsedRate = parsePositiveAmount(req.body?.rate, 'rate');
+        const parsedFee = req.body?.fee === undefined || Number(req.body.fee) === 0 ? 0 : parsePositiveAmount(req.body.fee, 'fee');
+        if (fromAsset === toAsset) throw new ApiError(422, 'INVALID_ASSET_PAIR', 'Source and destination assets must differ.');
+        const company = await prisma.company.findFirst({ where: { id: req.companyId }, select: { isTestMode: true } });
+        if (!company?.isTestMode) throw new ApiError(503, 'LIVE_PROVIDER_NOT_CONFIGURED', 'Live treasury execution is not enabled for this environment.');
         const source = await prisma.asset.findFirst({ where: { companyId: req.companyId, symbol: fromAsset } });
         const destination = await prisma.asset.findFirst({ where: { companyId: req.companyId, symbol: toAsset } });
         if (!source || !destination) return res.status(400).json({ error: 'One or more assets are not available in this treasury' });
-        if (source.balance < Number(fromAmount)) return res.status(400).json({ error: 'Insufficient asset balance' });
-
-        const swap = await prisma.swap.create({
-            data: {
-                companyId: req.companyId!,
-                fromAsset,
-                toAsset,
-                fromAmount,
-                toAmount,
-                rate,
-                fee,
-                status: 'pending',
-                txHash: `0x${Math.random().toString(16).substr(2, 64)}`,
-                chain: 'Ethereum'
-            }
-        });
-
-        // Update asset balances
-        await prisma.asset.update({
-            where: {
-                companyId_symbol: {
-                    companyId: req.companyId!,
-                    symbol: fromAsset
+        const result = await executeIdempotent(req.companyId!, req, async () => {
+            const completedSwap = await prisma.$transaction(async (tx) => {
+                const debit = await tx.asset.updateMany({
+                    where: { companyId: req.companyId!, symbol: fromAsset, balance: { gte: parsedFromAmount + parsedFee } },
+                    data: { balance: { decrement: parsedFromAmount + parsedFee }, usdValue: { decrement: parsedFromAmount + parsedFee } },
+                });
+                if (debit.count !== 1) {
+                    throw new ApiError(409, 'INSUFFICIENT_BALANCE', 'Insufficient asset balance.');
                 }
-            },
-            data: {
-                balance: { decrement: fromAmount },
-                usdValue: { decrement: fromAmount }
-            }
-        });
-
-        await prisma.asset.update({
-            where: {
-                companyId_symbol: {
-                    companyId: req.companyId!,
-                    symbol: toAsset
-                }
-            },
-            data: {
-                balance: { increment: toAmount },
-                usdValue: { increment: toAmount }
-            }
-        });
-
-        // Create transaction record
-        await prisma.transaction.create({
-            data: {
-                companyId: req.companyId!,
-                type: 'swap',
-                description: `Swap ${fromAmount} ${fromAsset} to ${toAmount} ${toAsset}`,
-                amount: fromAmount,
-                currency: fromAsset,
-                isIncoming: false,
-                status: 'settled',
-                fees: fee,
-                chain: 'Ethereum',
-                txHash: swap.txHash
-            }
-        });
-
-        // Simulate completion
-        setTimeout(async () => {
-            await prisma.swap.update({
-                where: { id: swap.id },
-                data: { status: 'completed' }
+                await tx.asset.update({
+                    where: { companyId_symbol: { companyId: req.companyId!, symbol: toAsset } },
+                    data: { balance: { increment: parsedToAmount }, usdValue: { increment: parsedToAmount } },
+                });
+                const swap = await tx.swap.create({
+                    data: {
+                        companyId: req.companyId!,
+                        fromAsset,
+                        toAsset,
+                        fromAmount: parsedFromAmount,
+                        toAmount: parsedToAmount,
+                        rate: parsedRate,
+                        fee: parsedFee,
+                        status: 'completed',
+                        txHash: sandboxReference('swap'),
+                        chain: 'Sandbox'
+                    }
+                });
+                await tx.transaction.create({
+                    data: {
+                        companyId: req.companyId!,
+                        type: 'swap',
+                        description: 'Swap ' + parsedFromAmount + ' ' + fromAsset + ' to ' + parsedToAmount + ' ' + toAsset,
+                        amount: parsedFromAmount,
+                        currency: fromAsset,
+                        isIncoming: false,
+                        status: 'settled',
+                        fees: parsedFee,
+                        chain: 'Sandbox',
+                        txHash: swap.txHash
+                    }
+                });
+                return swap;
             });
-        }, 2000);
-
-        res.status(201).json(swap);
+            await audit(req.companyId!, 'treasury.swap_completed', 'swap', {
+                actorId: req.user?.id,
+                entityId: completedSwap.id,
+                requestId: res.locals.requestId,
+                metadata: { fromAsset, toAsset, fromAmount: parsedFromAmount, toAmount: parsedToAmount },
+            });
+            return { status: 201, body: completedSwap };
+        });
+        res.status(result.status).json(result.body);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to execute swap' });
+        return sendApiError(res, error, 'Failed to execute swap');
     }
 });
 
 // POST /api/treasury/deposit - Deposit funds
 router.post('/deposit', async (req: AuthRequest, res: Response) => {
     try {
-        const { asset, amount } = req.body;
-        if (!asset || !Number.isFinite(Number(amount)) || Number(amount) <= 0) return res.status(400).json({ error: 'A valid asset and positive amount are required' });
+        const asset = requiredText(req.body?.asset, 'asset', 20).toUpperCase();
+        const parsedAmount = parsePositiveAmount(req.body?.amount);
+        const company = await prisma.company.findFirst({ where: { id: req.companyId }, select: { isTestMode: true } });
+        if (!company?.isTestMode) throw new ApiError(503, 'LIVE_PROVIDER_NOT_CONFIGURED', 'Live deposits require provider confirmation.');
         const existingAsset = await prisma.asset.findFirst({ where: { companyId: req.companyId, symbol: asset } });
         if (!existingAsset) return res.status(400).json({ error: 'Asset is not available in this treasury' });
 
-        // Update asset balance
-        await prisma.asset.update({
-            where: {
-                companyId_symbol: {
-                    companyId: req.companyId!,
-                    symbol: asset
-                }
-            },
-            data: {
-                balance: { increment: amount },
-                usdValue: { increment: amount }
-            }
+        const result = await executeIdempotent(req.companyId!, req, async () => {
+            const transaction = await prisma.$transaction(async (tx) => {
+                await tx.asset.update({
+                    where: { companyId_symbol: { companyId: req.companyId!, symbol: asset } },
+                    data: { balance: { increment: parsedAmount }, usdValue: { increment: parsedAmount } },
+                });
+                return tx.transaction.create({
+                    data: {
+                        companyId: req.companyId!,
+                        type: 'deposit',
+                        description: 'Sandbox faucet deposit ' + parsedAmount + ' ' + asset,
+                        amount: parsedAmount,
+                        currency: asset,
+                        isIncoming: true,
+                        status: 'settled',
+                        chain: 'Sandbox',
+                        txHash: sandboxReference('deposit')
+                    }
+                });
+            });
+            await audit(req.companyId!, 'treasury.deposit_completed', 'transaction', {
+                actorId: req.user?.id,
+                entityId: transaction.id,
+                requestId: res.locals.requestId,
+                metadata: { asset, amount: parsedAmount },
+            });
+            return { status: 201, body: transaction };
         });
-
-        // Create transaction record
-        const transaction = await prisma.transaction.create({
-            data: {
-                companyId: req.companyId!,
-                type: 'deposit',
-                description: `Deposit ${amount} ${asset}`,
-                amount,
-                currency: asset,
-                isIncoming: true,
-                status: 'settled',
-                chain: 'Ethereum',
-                txHash: `0x${Math.random().toString(16).substr(2, 64)}`
-            }
-        });
-
-        res.status(201).json(transaction);
+        res.status(result.status).json(result.body);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to process deposit' });
+        return sendApiError(res, error, 'Failed to process deposit');
     }
 });
 
 // POST /api/treasury/withdraw - Withdraw funds
 router.post('/withdraw', async (req: AuthRequest, res: Response) => {
     try {
-        const { asset, amount, address } = req.body;
-        if (!asset || !address || !Number.isFinite(Number(amount)) || Number(amount) <= 0) return res.status(400).json({ error: 'Asset, destination address, and positive amount are required' });
+        const asset = requiredText(req.body?.asset, 'asset', 20).toUpperCase();
+        const parsedAmount = parsePositiveAmount(req.body?.amount);
+        const address = requiredText(req.body?.address, 'address', 300);
+        const company = await prisma.company.findFirst({ where: { id: req.companyId }, select: { isTestMode: true } });
+        if (!company?.isTestMode) throw new ApiError(503, 'LIVE_PROVIDER_NOT_CONFIGURED', 'Live withdrawals require provider confirmation.');
         const existingAsset = await prisma.asset.findFirst({ where: { companyId: req.companyId, symbol: asset } });
         if (!existingAsset) return res.status(400).json({ error: 'Asset is not available in this treasury' });
-        if (existingAsset.balance < Number(amount)) return res.status(400).json({ error: 'Insufficient asset balance' });
-
-        // Update asset balance
-        await prisma.asset.update({
-            where: {
-                companyId_symbol: {
-                    companyId: req.companyId!,
-                    symbol: asset
+        const result = await executeIdempotent(req.companyId!, req, async () => {
+            const transaction = await prisma.$transaction(async (tx) => {
+                const debit = await tx.asset.updateMany({
+                    where: { companyId: req.companyId!, symbol: asset, balance: { gte: parsedAmount } },
+                    data: { balance: { decrement: parsedAmount }, usdValue: { decrement: parsedAmount } },
+                });
+                if (debit.count !== 1) {
+                    throw new ApiError(409, 'INSUFFICIENT_BALANCE', 'Insufficient asset balance.');
                 }
-            },
-            data: {
-                balance: { decrement: amount },
-                usdValue: { decrement: amount }
-            }
-        });
-
-        // Create transaction record
-        const transaction = await prisma.transaction.create({
-            data: {
-                companyId: req.companyId!,
-                type: 'withdrawal',
-                description: `Withdraw ${amount} ${asset} to ${address.substring(0, 10)}...`,
-                amount,
-                currency: asset,
-                isIncoming: false,
-                status: 'processing',
-                chain: 'Ethereum',
-                txHash: `0x${Math.random().toString(16).substr(2, 64)}`
-            }
-        });
-
-        // Simulate completion
-        setTimeout(async () => {
-            await prisma.transaction.update({
-                where: { id: transaction.id },
-                data: { status: 'settled' }
+                return tx.transaction.create({
+                    data: {
+                        companyId: req.companyId!,
+                        type: 'withdrawal',
+                        description: 'Sandbox withdrawal ' + parsedAmount + ' ' + asset + ' to ' + address.substring(0, 10) + '...',
+                        amount: parsedAmount,
+                        currency: asset,
+                        isIncoming: false,
+                        status: 'settled',
+                        chain: 'Sandbox',
+                        txHash: sandboxReference('withdrawal')
+                    }
+                });
             });
-        }, 3000);
-
-        res.status(201).json(transaction);
+            await audit(req.companyId!, 'treasury.withdrawal_completed', 'transaction', {
+                actorId: req.user?.id,
+                entityId: transaction.id,
+                requestId: res.locals.requestId,
+                metadata: { asset, amount: parsedAmount },
+            });
+            return { status: 201, body: transaction };
+        });
+        res.status(result.status).json(result.body);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to process withdrawal' });
+        return sendApiError(res, error, 'Failed to process withdrawal');
     }
 });
 
 // GET /api/treasury/history - Transaction history
 router.get('/history', async (req: AuthRequest, res: Response) => {
     try {
-        const limit = parseInt(req.query.limit as string) || 50;
-        const type = req.query.type as string;
+        const limit = parseBoundedLimit(req.query.limit, 50, 100);
+        const type = typeof req.query.type === 'string' ? req.query.type : undefined;
 
         const where: any = { companyId: req.companyId };
         if (type) where.type = type;
@@ -242,7 +228,7 @@ router.get('/history', async (req: AuthRequest, res: Response) => {
 
         res.json(transactions);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch transaction history' });
+        return sendApiError(res, error, 'Failed to fetch transaction history');
     }
 });
 

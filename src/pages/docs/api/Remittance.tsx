@@ -1,244 +1,91 @@
 import { CodeWindow } from "@/components/docs/CodeWindow";
 import { DocCallout } from "@/components/docs/DocCallout";
 import { Badge } from "@/components/ui/badge";
-import { Globe, ArrowRightLeft, ShieldCheck, Zap } from "lucide-react";
+import { Globe, ShieldCheck, Timer, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 
 export default function RemittanceAPI() {
     return (
-        <div className="space-y-16 max-w-5xl">
-            <div>
-                <div className="flex items-center gap-3 mb-6">
-                    <h1 className="text-4xl font-bold text-white tracking-tight">Remittance API</h1>
-                    <Badge variant="outline" className="border-emerald-500/20 text-emerald-400">Core V2</Badge>
+        <div className="max-w-5xl space-y-16">
+            <header>
+                <div className="mb-6 flex flex-wrap items-center gap-3"><h1 className="text-4xl font-bold tracking-tight text-[#20211e]">Remittance API</h1><Badge variant="outline" className="border-[#cdd8c8] text-[#087f5b]">Sandbox route</Badge></div>
+                <p className="max-w-3xl text-xl leading-relaxed text-[#575750]">Model a cross-border payout from a treasury balance to a saved recipient. The sandbox returns a deterministic settlement; live bank and mobile-money providers are not connected.</p>
+            </header>
+
+            <DocCallout type="info" title="Defined sandbox corridors">The sandbox accepts USDC, USDT, or ETH into NGN, KES, UGX, GHS, MXN, or BRL. Production coverage depends on reviewed providers and destination rails.</DocCallout>
+
+            <Endpoint title="Create a remittance" method="POST" path="/api/remittance">
+                <div className="space-y-6">
+                    <p className="leading-relaxed text-[#575750]">Creates a completed sandbox transfer after the source balance, saved recipient, corridor, and delivery method are validated. The server recalculates the FX rate and fee.</p>
+                    <ParamTable rows={[
+                        ["sender", "Required", "Sender label stored on the remittance"],
+                        ["recipientId", "Required", "Saved recipient belonging to the company"],
+                        ["amount", "Required", "Positive source amount"],
+                        ["currency", "Required", "USDC, USDT, or ETH"],
+                        ["localCurrency", "Required", "NGN, KES, UGX, GHS, MXN, or BRL"],
+                        ["deliveryMethod", "Required", "wallet, bank, mobile-money, or cash-agent"],
+                    ]} />
+                    <div className="space-y-3"><h3 className="mono-label text-[#77766e]">Response codes</h3><ResponseCode code="201" desc="Sandbox transfer created" color="emerald" /><ResponseCode code="409" desc="Insufficient balance or conflicting idempotency key" color="zinc" /><ResponseCode code="422" desc="Invalid corridor or delivery method" color="zinc" /></div>
                 </div>
-                <p className="text-xl text-zinc-400 leading-relaxed max-w-3xl">
-                    Our Remittance API allows you to send funds across borders with institutional-grade reliability.
-                    We leverage local clearing systems to ensure funds arrive in minutes, not days.
-                </p>
-            </div>
-
-            <DocCallout type="info" title="Global Coverage">
-                Currently supporting 180+ countries including major corridors across Africa, Asia, and Latin America.
-                Check our <a href="#" className="text-emerald-400">Availability Map</a> for real-time status.
-            </DocCallout>
-
-            {/* --- ENDPOINT: CREATE REMITTANCE --- */}
-            <section className="space-y-8">
-                <div className="flex items-center gap-3">
-                    <Badge className="bg-emerald-500/10 text-emerald-400 py-1 px-3 border border-emerald-500/20 font-mono">POST</Badge>
-                    <code className="text-xl font-mono text-white">/v1/remittance</code>
+                <div className="space-y-4">
+                    <CodeWindow language="bash" title="cURL" code={`curl https://your-api.example.com/api/remittance \\
+  -H "Authorization: Bearer sk_test_..." \\
+  -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: remittance-demo-001" \\
+  -d '{"sender":"Acme Treasury","recipientId":"rcpt_123","amount":50,"currency":"USDC","localCurrency":"KES","deliveryMethod":"mobile-money"}'`} />
+                    <CodeWindow language="json" title="Response" code={`{
+  "id": "remittance_...",
+  "amount": 50,
+  "currency": "USDC",
+  "localAmount": 6500,
+  "localCurrency": "KES",
+  "status": "completed",
+  "chain": "Sandbox"
+}`} />
                 </div>
+            </Endpoint>
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-                    <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-zinc-100">Create a remittance</h2>
-                        <p className="text-zinc-400 leading-relaxed">
-                            Initiates a cross-border transfer. This is an asynchronous operation.
-                            You should listen for `payout.paid` or `payout.failed` webhooks to confirm final settlement.
-                        </p>
+            <Endpoint title="Request a quote" method="POST" path="/api/remittance/quote">
+                <div className="space-y-5"><p className="leading-relaxed text-[#575750]">Returns a short-lived informational quote. It is not a reservation; the create endpoint recalculates authoritative values.</p><ResponseCode code="200" desc="Quote with rate, fee, destination amount, and expiresAt" color="emerald" /></div>
+                <CodeWindow language="bash" title="cURL" code={`curl https://your-api.example.com/api/remittance/quote \\
+  -H "Authorization: Bearer sk_test_..." \\
+  -H "Content-Type: application/json" \\
+  -d '{"amount":50,"currency":"USDC","localCurrency":"KES"}'`} />
+            </Endpoint>
 
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Parameters</h3>
-                            <div className="border border-white/5 rounded-2xl overflow-hidden shadow-inner bg-white/[0.01]">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="bg-white/5 text-zinc-300 font-bold">
-                                        <tr>
-                                            <th className="px-6 py-4">Parameter</th>
-                                            <th className="px-6 py-4">Required</th>
-                                            <th className="px-6 py-4">Description</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-white/5">
-                                        <ParamRow name="recipient_id" required desc="Verified recipient ID (rcpt_...)" />
-                                        <ParamRow name="amount" required desc="Smallest currency unit (e.g. cents)" />
-                                        <ParamRow name="currency" required desc="3-letter ISO code (USD, NGN, etc)" />
-                                        <ParamRow name="idempotency_key" required={false} desc="Header-based unique string" />
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+            <Endpoint title="List and retrieve remittances" method="GET" path="/api/remittance">
+                <div className="space-y-5"><p className="leading-relaxed text-[#575750]">List remittances with a bounded <code>limit</code>, or retrieve one by ID at <code>/api/remittance/:id</code>.</p><ResponseCode code="200" desc="Company-scoped remittance list or record" color="blue" /><ResponseCode code="404" desc="No matching company-scoped record" color="zinc" /></div>
+                <CodeWindow language="bash" title="cURL" code={`curl "https://your-api.example.com/api/remittance?limit=20" \\
+  -H "Authorization: Bearer sk_test_..."
 
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Response Codes</h3>
-                            <div className="grid grid-cols-1 gap-3">
-                                <ResponseCode code="201 Created" desc="Transfer initiated successfully." color="emerald" />
-                                <ResponseCode code="400 Bad Request" desc="Invalid parameters or missing required fields." color="zinc" />
-                                <ResponseCode code="402 Payment Required" desc="Insufficient balance in the source account." color="zinc" />
-                                <ResponseCode code="403 Forbidden" desc="Recipient blocked by compliance engine." color="zinc" />
-                            </div>
-                        </div>
-                    </div>
+curl https://your-api.example.com/api/remittance/remittance_123 \\
+  -H "Authorization: Bearer sk_test_..."`} />
+            </Endpoint>
 
-                    <div className="space-y-4">
-                        <CodeWindow
-                            language="bash"
-                            title="cURL"
-                            code={`curl https://api.zapzive.com/v1/remittance \\
-  -u sk_test_...: \\
-  -d recipient_id="rcpt_123" \\
-  -d amount=5000 \\
-  -d currency="USD"`}
-                        />
-                        <CodeWindow
-                            language="typescript"
-                            title="Node.js"
-                            code={`await client.remittance.create({\n  amount: 5000,\n  currency: "USD",\n  destination: "rcpt_123"\n}, { \n  idempotency_key: 'tx_unique_998',\n  verify_kyc: true // Compliance pre-flight check\n});`}
-                        />
-                        <CodeWindow
-                            language="json"
-                            title="Response"
-                            code={`{
-  "id": "tr_1Hh2YZ2eZvKYlo2C",
-  "object": "transfer",
-  "amount": 5000,
-  "currency": "usd",
-  "status": "pending",
-  "recipient": "rcpt_123",
-  "created": 1672531200
-}`}
-                        />
-                    </div>
-                </div>
+            <Endpoint title="Cancel a remittance" method="POST" path="/api/remittance/:id/cancel">
+                <div className="space-y-5"><p className="leading-relaxed text-[#575750]">Attempts cancellation only when the backend state allows it. The current sandbox creates completed transfers, so this route is primarily for future provider-backed pending states.</p><ResponseCode code="200" desc="Transfer cancelled" color="emerald" /><ResponseCode code="409" desc="Transfer cannot be cancelled in its current state" color="zinc" /></div>
+                <CodeWindow language="bash" title="cURL" code={`curl -X POST https://your-api.example.com/api/remittance/remittance_123/cancel \\
+  -H "Authorization: Bearer sk_test_..." \\
+  -H "Idempotency-Key: cancel-demo-001"`} />
+            </Endpoint>
+
+            <DocCallout type="mistake" title="Protect against duplicate money movement">Always send an <code>Idempotency-Key</code> on every mutating request. If a network timeout occurs, retry the exact same request with the exact same key.</DocCallout>
+
+            <section className="grid gap-6 border-t border-[#d9d6cd] pt-12 md:grid-cols-3">
+                <APIHighlight icon={<Timer />} title="Short-lived quotes" desc="Quotes include an expiry timestamp and are not reservations." />
+                <APIHighlight icon={<ShieldCheck />} title="Server validation" desc="Ownership, corridor, balance, and delivery method are checked together." />
+                <APIHighlight icon={<Globe />} title="Provider boundary" desc="No live bank, mobile-money, or blockchain provider is connected here." />
             </section>
-
-            {/* --- ENDPOINT: LIST REMITTANCES --- */}
-            <section className="space-y-8 py-16 border-t border-white/5">
-                <div className="flex items-center gap-3">
-                    <Badge className="bg-blue-500/10 text-blue-400 py-1 px-3 border border-blue-500/20 font-mono">GET</Badge>
-                    <code className="text-xl font-mono text-white">/v1/remittance</code>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-                    <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-zinc-100">List all remittances</h2>
-                        <p className="text-zinc-400">
-                            Returns a paginated list of all transfers associated with your account.
-                        </p>
-                        <ResponseCode code="200 OK" desc="List of transfers returned." color="blue" />
-                    </div>
-                    <CodeWindow
-                        language="bash"
-                        title="cURL"
-                        code={`curl https://api.zapzive.com/v1/remittance?limit=10 \\
-  -u sk_test_...:`}
-                    />
-                </div>
-            </section>
-
-            {/* --- ENDPOINT: RETRIEVE REMITTANCE --- */}
-            <section className="space-y-8 py-16 border-t border-white/5">
-                <div className="flex items-center gap-3">
-                    <Badge className="bg-blue-500/10 text-blue-400 py-1 px-3 border border-blue-500/20 font-mono">GET</Badge>
-                    <code className="text-xl font-mono text-white">/v1/remittance/:id</code>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-                    <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-zinc-100">Retrieve a remittance</h2>
-                        <p className="text-zinc-400">
-                            Retrieves the details of an existing transfer.
-                        </p>
-                        <ResponseCode code="200 OK" desc="Transfer object returned." color="blue" />
-                        <ResponseCode code="404 Not Found" desc="No transfer matches the provided ID." color="zinc" />
-                    </div>
-                    <CodeWindow
-                        language="bash"
-                        title="cURL"
-                        code={`curl https://api.zapzive.com/v1/remittance/tr_123 \\
-  -u sk_test_...:`}
-                    />
-                </div>
-            </section>
-
-            {/* --- ENDPOINT: CANCEL REMITTANCE --- */}
-            <section className="space-y-8 py-16 border-t border-white/5">
-                <div className="flex items-center gap-3">
-                    <Badge className="bg-red-500/10 text-red-400 py-1 px-3 border border-red-500/20 font-mono">DELETE</Badge>
-                    <code className="text-xl font-mono text-white">/v1/remittance/:id</code>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-                    <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-zinc-100">Cancel a remittance</h2>
-                        <p className="text-zinc-400">
-                            Attempts to cancel a transfer. This is only possible if the transfer status is still `pending`.
-                        </p>
-                        <ResponseCode code="200 OK" desc="Transfer successfully cancelled." color="red" />
-                        <ResponseCode code="403 Forbidden" desc="Transfer is too far along to cancel." color="zinc" />
-                    </div>
-                    <CodeWindow
-                        language="bash"
-                        title="cURL"
-                        code={`curl -X DELETE https://api.zapzive.com/v1/remittance/tr_123 \\
-  -u sk_test_...:`}
-                    />
-                </div>
-            </section>
-
-            <DocCallout type="mistake" title="Double-Payments Danger">
-                Always pass an <code className="text-red-400">Idempotency-Key</code> in your header.
-                If your network times out and you retry without a key, you may accidentally send money twice.
-            </DocCallout>
-
-            {/* Features Highlight */}
-            <section className="grid grid-cols-1 md:grid-cols-3 gap-8 py-16 border-t border-white/5">
-                <APIHighlight
-                    icon={<Zap className="w-5 h-5 text-emerald-400" />}
-                    title="Real-time Rates"
-                    desc="We fetch live mid-market rates every 30 seconds."
-                />
-                <APIHighlight
-                    icon={<ShieldCheck className="w-5 h-5 text-blue-400" />}
-                    title="Sanctions Screening"
-                    desc="Automatic AML/CFT screening on every transaction."
-                />
-                <APIHighlight
-                    icon={<Globe className="w-5 h-5 text-purple-400" />}
-                    title="Local Rails"
-                    desc="Direct integration with local SEPA and Faster Payments."
-                />
-            </section>
-
         </div>
     );
 }
 
-function ParamRow({ name, required, desc }: { name: string; required: boolean; desc: string }) {
-    return (
-        <tr className="hover:bg-white/[0.02] transition-colors">
-            <td className="px-6 py-4 font-mono text-emerald-400">{name}</td>
-            <td className="px-6 py-4">
-                {required ? <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px]">Required</Badge> : <span className="text-zinc-600 text-[10px]">Optional</span>}
-            </td>
-            <td className="px-6 py-4 text-zinc-400">{desc}</td>
-        </tr>
-    );
+function Endpoint({ title, method, path, children }: { title: string; method: string; path: string; children: ReactNode }) {
+    const [details, code] = Array.isArray(children) ? children : [children, null];
+    return <section className="space-y-8 border-t border-[#d9d6cd] pt-12 first:border-t-0 first:pt-0"><div className="flex flex-wrap items-center gap-3"><Badge className={cn("border px-3 py-1 font-mono", method === "GET" ? "border-blue-500/20 bg-blue-500/10 text-[#087f5b]" : method === "POST" ? "border-emerald-500/20 bg-emerald-500/10 text-[#087f5b]" : "border-[#d9d6cd] bg-[#f5f3ee] text-[#575750]")}>{method}</Badge><code className="text-xl text-[#20211e]">{path}</code></div><h2 className="text-2xl font-bold text-[#20211e]">{title}</h2><div className="grid gap-10 xl:grid-cols-2"><div>{details}</div><div>{code}</div></div></section>;
 }
 
-function ResponseCode({ code, desc, color }: { code: string; desc: string; color: "emerald" | "blue" | "red" | "zinc" }) {
-    const colorClasses = {
-        emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-        blue: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-        red: "bg-red-500/10 text-red-400 border-red-500/20",
-        zinc: "bg-white/5 text-zinc-400 border-white/10"
-    };
-
-    return (
-        <div className={cn("flex items-center gap-4 p-4 rounded-xl border", colorClasses[color])}>
-            <span className="font-mono font-bold text-sm min-w-[100px]">{code}</span>
-            <span className="text-xs opacity-80">{desc}</span>
-        </div>
-    );
-}
-
-function APIHighlight({ icon, title, desc }: { icon: any; title: string; desc: string }) {
-    return (
-        <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
-            <div className="w-10 h-10 rounded-xl bg-white/[0.04] flex items-center justify-center">{icon}</div>
-            <h3 className="font-bold text-white">{title}</h3>
-            <p className="text-xs text-zinc-500 leading-relaxed">{desc}</p>
-        </div>
-    );
-}
-
+function ParamTable({ rows }: { rows: string[][] }) { return <div className="overflow-hidden rounded-2xl border border-[#d9d6cd] bg-[#fffdf8]"><table className="w-full text-left text-sm"><thead className="bg-[#f5f3ee] text-[#575750]"><tr><th className="px-4 py-3">Field</th><th className="px-4 py-3">Required</th><th className="px-4 py-3">Description</th></tr></thead><tbody className="divide-y divide-[#d9d6cd]">{rows.map(([name, required, desc]) => <tr key={name}><td className="px-4 py-3 font-mono text-[#087f5b]">{name}</td><td className="px-4 py-3 text-xs text-[#77766e]">{required}</td><td className="px-4 py-3 text-[#575750]">{desc}</td></tr>)}</tbody></table></div>; }
+function ResponseCode({ code, desc, color }: { code: string; desc: string; color: "emerald" | "blue" | "zinc" }) { const colors = { emerald: "border-emerald-500/20 bg-emerald-500/10 text-[#087f5b]", blue: "border-blue-500/20 bg-blue-500/10 text-[#087f5b]", zinc: "border-[#d9d6cd] bg-[#f5f3ee] text-[#575750]" }; return <div className={cn("flex items-center gap-4 rounded-xl border p-4", colors[color])}><span className="min-w-12 font-mono text-sm font-bold">{code}</span><span className="text-xs">{desc}</span></div>; }
+function APIHighlight({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) { return <div className="space-y-4 rounded-2xl border border-[#d9d6cd] bg-[#fffdf8] p-6"><div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#cdd8c8] bg-[#e8eee4] text-[#087f5b]">{icon}</div><h3 className="font-bold text-[#20211e]">{title}</h3><p className="text-xs leading-relaxed text-[#77766e]">{desc}</p></div>; }

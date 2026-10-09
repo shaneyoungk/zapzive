@@ -1,6 +1,5 @@
 import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
 import InfoTooltip from "./InfoTooltip";
 
 interface MetricCardProps {
@@ -33,46 +32,44 @@ export default function MetricCard({
     const isNegativeTrend = trend && trend.value < 0;
 
     return (
-        <motion.div
-            whileHover={onClick ? { y: -2 } : {}}
+        <div
             className={cn(
-                "premium-card p-4 transition-all",
-                onClick && "cursor-pointer hover:border-primary/20",
+                "premium-card dashboard-stat group p-5 transition-colors sm:p-6",
+                onClick && "cursor-pointer hover:border-[#b9d9cc]",
                 className
             )}
             onClick={onClick}
         >
-            <div className="flex items-start justify-between mb-3">
+            <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="mb-3 flex items-center gap-2">
                         <p className="metric-label">
                             {title}
                         </p>
                         {info && <InfoTooltip content={info} />}
                     </div>
-                    <h3 className="metric-value text-2xl text-foreground">
+                    <h3 className="metric-value text-[28px] leading-none text-[#20211e] tabular-nums">
                         {value}
                     </h3>
                 </div>
                 {customIconUrl ? (
-                    <div className="icon-3d w-11 h-11 !bg-neutral-950 dark:bg-muted/30 flex items-center justify-center !border-white/10 border dark:border-border">
+                    <div className="dashboard-icon h-10 w-10">
                         <img src={customIconUrl} alt={title} className="w-6 h-6 object-contain" />
                     </div>
                 ) : (
                     Icon && (
-                        <div className="icon-3d w-11 h-11 bg-muted/80 dark:bg-muted/30">
-                            <Icon className="w-6 h-6" />
+                        <div className="dashboard-icon h-10 w-10">
+                            <Icon className="h-[18px] w-[18px]" strokeWidth={1.8} />
                         </div>
                     )
                 )}
             </div>
 
             {(trend || subtitle) && (
-                <div className="flex items-center gap-2 flex-wrap mt-1">
+                <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[#e1dfd7] pt-3">
                     {trend && (
                         <div className={cn(
-                            "flex items-center gap-1 text-xs font-medium",
-                            "text-zinc-500 dark:text-zinc-400"
+                            "flex items-center gap-1 text-xs font-medium text-[#087f5b]"
                         )}>
                             {isPositiveTrend && <TrendingUp className="w-3 h-3" />}
                             {isNegativeTrend && <TrendingDown className="w-3 h-3" />}
@@ -82,12 +79,12 @@ export default function MetricCard({
                         </div>
                     )}
                     {subtitle && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-[#77766e]">
                             {subtitle}
                         </p>
                     )}
                 </div>
             )}
-        </motion.div>
+        </div>
     );
 }

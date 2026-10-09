@@ -1,129 +1,42 @@
 import { CodeWindow } from "@/components/docs/CodeWindow";
 import { DocCallout } from "@/components/docs/DocCallout";
 import { Badge } from "@/components/ui/badge";
-import { Landmark, ArrowRightLeft, ShieldCheck, Zap, Coins, Calculator } from "lucide-react";
+import { ArrowRightLeft, Coins, Landmark, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 
 export default function TreasuryAPI() {
     return (
-        <div className="space-y-16 max-w-5xl">
-            <div>
-                <div className="flex items-center gap-3 mb-6">
-                    <h1 className="text-4xl font-bold text-white tracking-tight">Treasury API</h1>
-                    <Badge variant="outline" className="border-amber-500/20 text-amber-400">Inventory V2</Badge>
-                </div>
-                <p className="text-xl text-zinc-400 leading-relaxed max-w-3xl">
-                    Manage your liquidity across 50+ fiat and digital currencies.
-                    Our Treasury API provides real-time balance tracking, automated FX swaps,
-                    and gas reserve management for on-chain operations.
-                </p>
-            </div>
+        <div className="max-w-5xl space-y-16">
+            <header><div className="mb-6 flex flex-wrap items-center gap-3"><h1 className="text-4xl font-bold tracking-tight text-[#20211e]">Treasury API</h1><Badge variant="outline" className="border-[#cdd8c8] text-[#087f5b]">Sandbox balance ledger</Badge></div><p className="max-w-3xl text-xl leading-relaxed text-[#575750]">Fund, inspect, swap, and reconcile the company’s sandbox asset ledger. No bank account, blockchain wallet, yield source, or live liquidity provider is connected.</p></header>
 
-            {/* --- ENDPOINT: GET BALANCES --- */}
-            <section className="space-y-8">
-                <div className="flex items-center gap-3">
-                    <Badge className="bg-blue-500/10 text-blue-400 py-1 px-3 border border-blue-500/20 font-mono">GET</Badge>
-                    <code className="text-xl font-mono text-white">/v1/treasury/balances</code>
-                </div>
+            <DocCallout type="info" title="Use the routes that exist">The working balance surface is <code>/api/treasury/assets</code>, <code>/api/treasury/portfolio</code>, <code>/api/treasury/deposit</code>, <code>/api/treasury/withdraw</code>, <code>/api/treasury/swap</code>, and <code>/api/treasury/history</code>. There is no <code>/balances</code> or <code>/refills</code> route in the current backend.</DocCallout>
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-                    <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-zinc-100">List all balances</h2>
-                        <p className="text-zinc-400 text-sm">
-                            Returns a breakdown of your current liquidity across all supported currencies and blockchains.
-                        </p>
+            <Endpoint title="List assets" method="GET" path="/api/treasury/assets"><div className="space-y-5"><p className="leading-relaxed text-[#575750]">Returns company-scoped assets with balances and USD values. Use <code>limit</code> to keep the response bounded.</p><ResponseCode code="200" desc="Asset list" color="blue" /></div><CodeWindow language="bash" title="cURL" code={`curl "https://your-api.example.com/api/treasury/assets?limit=50" \\
+  -H "Authorization: Bearer sk_test_..."`} /></Endpoint>
 
-                        <div className="space-y-4">
-                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Response Codes</h3>
-                            <ResponseCode code="200 OK" desc="Returns map of currency sub-balances." color="blue" />
-                        </div>
-                    </div>
+            <Endpoint title="Deposit sandbox funds" method="POST" path="/api/treasury/deposit"><div className="space-y-5"><p className="leading-relaxed text-[#575750]">Credits an existing sandbox asset and writes a settled ledger transaction. Every retry must reuse the same idempotency key.</p><ResponseCode code="201" desc="Deposit transaction created" color="emerald" /><ResponseCode code="409" desc="Conflicting key or invalid state" color="zinc" /></div><CodeWindow language="bash" title="cURL" code={`curl -X POST https://your-api.example.com/api/treasury/deposit \\
+  -H "Authorization: Bearer sk_test_..." \\
+  -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: deposit-demo-001" \\
+  -d '{"asset":"USDC","amount":5000}'`} /></Endpoint>
 
-                    <div className="space-y-4">
-                        <CodeWindow
-                            language="bash"
-                            title="cURL"
-                            code={`curl https://api.zapzive.com/v1/treasury/balances \\
-  -u sk_test_...:`}
-                        />
-                        <CodeWindow
-                            language="json"
-                            title="Response"
-                            code={`{
-  "object": "balance_list",
-  "data": {
-    "USD": 5000000,
-    "EUR": 120000,
-    "USDC": 450000
-  }
-}`}
-                        />
-                    </div>
-                </div>
-            </section>
+            <Endpoint title="Swap sandbox assets" method="POST" path="/api/treasury/swap"><div className="space-y-5"><p className="leading-relaxed text-[#575750]">Debits one existing asset, credits another, and records the supplied sandbox rate and fee atomically.</p><ResponseCode code="201" desc="Swap completed" color="emerald" /><ResponseCode code="409" desc="Insufficient source balance" color="zinc" /></div><CodeWindow language="bash" title="cURL" code={`curl -X POST https://your-api.example.com/api/treasury/swap \\
+  -H "Authorization: Bearer sk_test_..." \\
+  -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: swap-demo-001" \\
+  -d '{"fromAsset":"USDC","toAsset":"USDT","fromAmount":100,"toAmount":99,"rate":0.99,"fee":1}'`} /></Endpoint>
 
-            {/* --- ENDPOINT: CREATE REFILL --- */}
-            <section className="space-y-8 py-16 border-t border-white/5">
-                <div className="flex items-center gap-3">
-                    <Badge className="bg-emerald-500/10 text-emerald-400 py-1 px-3 border border-emerald-500/20 font-mono">POST</Badge>
-                    <code className="text-xl font-mono text-white">/v1/treasury/refills</code>
-                </div>
+            <Endpoint title="Inspect the ledger" method="GET" path="/api/treasury/history"><div className="space-y-5"><p className="leading-relaxed text-[#575750]">Returns bounded company-scoped transactions for reconciliation. Combine it with the asset list when displaying available balances.</p><ResponseCode code="200" desc="Transaction history" color="blue" /></div><CodeWindow language="bash" title="cURL" code={`curl "https://your-api.example.com/api/treasury/history?limit=50" \\
+  -H "Authorization: Bearer sk_test_..."`} /></Endpoint>
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-                    <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-zinc-100">Manual Refill</h2>
-                        <p className="text-zinc-400 text-sm">
-                            Request instructions for a bank wire or crypto deposit to top up your treasury.
-                        </p>
-                        <ResponseCode code="201 Created" desc="Refill request initiated." color="emerald" />
-                    </div>
-                    <CodeWindow
-                        language="bash"
-                        title="cURL"
-                        code={`curl https://api.zapzive.com/v1/treasury/refills \\
-  -d amount=1000000 \\
-  -d currency="USD"`}
-                    />
-                </div>
-            </section>
+            <DocCallout type="mistake" title="Sandbox funds are not real money">Deposit, swap, and withdrawal operations update the local sandbox ledger only. Do not use these routes to represent customer funds until a durable production database, provider settlement, reconciliation, and authorization review have been implemented.</DocCallout>
 
-            <DocCallout type="info" title="Liquidity Alerts">
-                Set up <a href="/docs/api/settings/webhooks" className="text-amber-400">low balance webhooks</a> to trigger automatic refills when your treasury drops below a custom threshold.
-            </DocCallout>
-
-            {/* Highlights */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 py-12">
-                <TreasuryCard icon={<Calculator className="w-5 h-5" />} title="Mid-market Rates" desc="Zero spread on major fiat pairs for enterprise clients." />
-                <TreasuryCard icon={<Coins className="w-5 h-5" />} title="Stablecoin Yield" desc="Earn up to 4.5% APY on idle USDC/PYUSD balances." />
-                <TreasuryCard icon={<Landmark className="w-5 h-5" />} title="Custodial Isolation" desc="Bank-grade security with segregated account structures." />
-            </div>
+            <section className="grid gap-6 border-t border-[#d9d6cd] pt-12 md:grid-cols-3"><Highlight icon={<Landmark />} title="One ledger" copy="Balances and transaction rows are updated in one database transaction." /><Highlight icon={<ArrowRightLeft />} title="Explicit movement" copy="Each debit, credit, fee, and sandbox reference is recorded." /><Highlight icon={<ShieldCheck />} title="Bounded access" copy="Company scoping, roles, API scopes, and idempotency protect writes." /></section>
         </div>
     );
 }
 
-function ResponseCode({ code, desc, color }: { code: string; desc: string; color: "emerald" | "blue" | "red" | "zinc" }) {
-    const colorClasses = {
-        emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-        blue: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-        red: "bg-red-500/10 text-red-400 border-red-500/20",
-        zinc: "bg-white/5 text-zinc-400 border-white/10"
-    };
-
-    return (
-        <div className={cn("flex items-center gap-4 p-4 rounded-xl border", colorClasses[color])}>
-            <span className="font-mono font-bold text-sm min-w-[100px]">{code}</span>
-            <span className="text-xs opacity-80">{desc}</span>
-        </div>
-    );
-}
-
-function TreasuryCard({ icon, title, desc }: { icon: any, title: string, desc: string }) {
-    return (
-        <div className="p-6 rounded-3xl bg-zinc-900/40 border border-white/5 space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-amber-400">{icon}</div>
-            <h4 className="font-bold text-white text-sm">{title}</h4>
-            <p className="text-xs text-zinc-500 leading-relaxed">{desc}</p>
-        </div>
-    );
-}
-
+function Endpoint({ title, method, path, children }: { title: string; method: string; path: string; children: ReactNode }) { const [details, code] = Array.isArray(children) ? children : [children, null]; return <section className="space-y-8 border-t border-[#d9d6cd] pt-12 first:border-t-0 first:pt-0"><div className="flex flex-wrap items-center gap-3"><Badge className={cn("border px-3 py-1 font-mono", method === "GET" ? "border-blue-500/20 bg-blue-500/10 text-[#087f5b]" : "border-emerald-500/20 bg-emerald-500/10 text-[#087f5b]")}>{method}</Badge><code className="text-xl text-[#20211e]">{path}</code></div><h2 className="text-2xl font-bold text-[#20211e]">{title}</h2><div className="grid gap-10 xl:grid-cols-2"><div>{details}</div><div>{code}</div></div></section>; }
+function ResponseCode({ code, desc, color }: { code: string; desc: string; color: "emerald" | "blue" | "zinc" }) { const colors = { emerald: "border-emerald-500/20 bg-emerald-500/10 text-[#087f5b]", blue: "border-blue-500/20 bg-blue-500/10 text-[#087f5b]", zinc: "border-[#d9d6cd] bg-[#f5f3ee] text-[#575750]" }; return <div className={cn("flex items-center gap-4 rounded-xl border p-4", colors[color])}><span className="min-w-12 font-mono text-sm font-bold">{code}</span><span className="text-xs">{desc}</span></div>; }
+function Highlight({ icon, title, copy }: { icon: ReactNode; title: string; copy: string }) { return <div className="space-y-4 rounded-2xl border border-[#d9d6cd] bg-[#fffdf8] p-6"><div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#cdd8c8] bg-[#e8eee4] text-[#087f5b]">{icon}</div><h3 className="font-bold text-[#20211e]">{title}</h3><p className="text-xs leading-relaxed text-[#77766e]">{copy}</p></div>; }

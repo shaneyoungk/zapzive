@@ -56,6 +56,7 @@ import { useWorkers, usePayrollBatches, useExecuteBatch } from "@/hooks/use-payr
 import { AddWorkerModal } from "@/components/dashboard/modals/AddWorkerModal";
 import { ImportCSVModal } from "@/components/dashboard/modals/ImportCSVModal";
 import { NewBatchWizard } from "@/components/dashboard/modals/NewBatchWizard";
+import { EditWorkerModal } from "@/components/dashboard/modals/EditWorkerModal";
 
 // ... existing interfaces ...
 
@@ -75,6 +76,7 @@ export default function Payroll() {
     const { data: workersData, isLoading: workersLoading } = useWorkers({ search: searchQuery });
     const { data: batchesData, isLoading: batchesLoading } = usePayrollBatches();
     const executeBatch = useExecuteBatch();
+    const [isEditWorkerOpen, setIsEditWorkerOpen] = useState(false);
 
     const workers = workersData || [];
     const batches = batchesData || [];
@@ -97,88 +99,33 @@ export default function Payroll() {
     const costSavings = monthlyTotal * 0.045; // Est. 4.5% savings
 
 
+
     return (
         <div className="p-4 lg:p-6 max-w-[1600px] mx-auto space-y-6 animate-fade-in">
-            {/* Header */}
-            <div className="flex items-center justify-end gap-3">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                <div><p className="dashboard-eyebrow">People operations</p><h1 className="mt-2 text-3xl">Global payroll</h1><p className="mt-2 text-sm text-[#77766e]">Workers, payment batches, approvals, and delivery records.</p></div>
+                <div className="flex items-center gap-2">
                 <Button
                     variant="outline"
-                    className="h-8 px-4 text-[10px] font-semibold border-zinc-800 bg-[#111] text-zinc-400 hover:text-white hover:bg-[#222]"
                     onClick={() => setIsImportCSVOpen(true)}
                 >
-                    <Upload className="w-3 h-3 mr-2" />
+                    <Upload className="h-4 w-4" />
                     Import CSV
                 </Button>
                 <Button
-                    className="h-8 px-4 text-[10px] font-bold bg-white text-black hover:bg-zinc-200"
                     onClick={() => setIsAddWorkerOpen(true)}
                 >
-                    <Plus className="w-3 h-3 mr-2" />
-                    Add Worker
+                    <Plus className="h-4 w-4" />
+                    Add worker
                 </Button>
+                </div>
             </div>
 
-            {/* Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Next Payroll</h3>
-                    </div>
-                    {batchesLoading ? (
-                        <div className="h-10 animate-pulse bg-zinc-800 rounded" />
-                    ) : (
-                        <>
-                            <h3 className="text-2xl font-medium tracking-tight text-white mb-1 tabular-nums">
-                                {nextBatch ? new Date(nextBatch.scheduledDate || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "None"}
-                            </h3>
-                            <p className="text-xs text-zinc-500">
-                                {nextBatch ? `$${(nextBatch.totalAmount || 0).toLocaleString()}` : "No upcoming batches"}
-                            </p>
-                        </>
-                    )}
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Active Workers</h3>
-                    </div>
-                    {workersLoading ? (
-                        <div className="h-10 animate-pulse bg-zinc-800 rounded" />
-                    ) : (
-                        <>
-                            <h3 className="text-2xl font-medium tracking-tight text-white mb-1 tabular-nums">{activeWorkersCount}</h3>
-                            <p className="text-xs text-zinc-500">{uniqueCountries} countries</p>
-                        </>
-                    )}
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Monthly Total</h3>
-                    </div>
-                    {batchesLoading ? (
-                        <div className="h-10 animate-pulse bg-zinc-800 rounded" />
-                    ) : (
-                        <>
-                            <h3 className="text-2xl font-medium tracking-tight text-white mb-1 font-mono tabular-nums">${(monthlyTotal || 0).toLocaleString()}</h3>
-                            <p className="text-xs text-emerald-400 font-medium">+8.5% vs last month</p>
-                        </>
-                    )}
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Cost Savings</h3>
-                    </div>
-                    {batchesLoading ? (
-                        <div className="h-10 animate-pulse bg-zinc-800 rounded" />
-                    ) : (
-                        <>
-                            <h3 className="text-2xl font-medium tracking-tight text-white mb-1 font-mono tabular-nums">${(costSavings || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
-                            <p className="text-xs text-zinc-500">vs traditional</p>
-                        </>
-                    )}
-                </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <MetricCard title="Next payroll" value={batchesLoading ? "…" : nextBatch ? new Date(nextBatch.scheduledDate || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "None"} icon={Clock} subtitle={nextBatch ? `$${(nextBatch.totalAmount || 0).toLocaleString()}` : "No upcoming batches"} />
+                <MetricCard title="Active workers" value={workersLoading ? "…" : activeWorkersCount} icon={Users} subtitle={`${uniqueCountries} countries`} />
+                <MetricCard title="Monthly total" value={batchesLoading ? "…" : `$${(monthlyTotal || 0).toLocaleString()}`} icon={DollarSign} trend={{ value: 8.5, label: "vs last month" }} />
+                <MetricCard title="Estimated savings" value={batchesLoading ? "…" : `$${(costSavings || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`} icon={TrendingUp} subtitle="Compared with traditional rails" />
             </div>
 
             {/* Tabs */}
@@ -194,8 +141,8 @@ export default function Payroll() {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as "workers" | "batches" | "history")}
                             className={`flex items-center gap-2 px-4 py-3 text-xs font-semibold transition-all duration-200 border-b-2 ${activeTab === tab.id
-                                ? "text-white border-white"
-                                : "text-zinc-500 hover:text-zinc-300 border-transparent hover:bg-[#111]"
+                                ? "border-[#11a879] text-[#087f5b]"
+                                : "border-transparent text-[#77766e] hover:bg-[#fffdf8] hover:text-[#20211e]"
                                 }`}
                         >
                             <Icon className="w-3.5 h-3.5" />
@@ -236,11 +183,12 @@ export default function Payroll() {
                                 className="premium-card p-5 cursor-pointer hover:border-primary/20 transition-all duration-200"
                             >
                                 <div className="flex items-start gap-4 mb-4">
-                                    <img
-                                        src={worker.avatar}
-                                        alt={worker.name}
-                                        className="w-12 h-12 rounded-lg bg-muted ring-1 ring-border"
-                                    />
+                                    <div
+                                        aria-hidden="true"
+                                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#cdd8c8] bg-[#e8eee4] text-sm font-semibold tracking-wide text-[#087f5b]"
+                                    >
+                                        {worker.name.split(" ").map((part) => part[0]).slice(0, 2).join("")}
+                                    </div>
                                     <div className="flex-1 min-w-0">
                                         <h4 className="font-semibold text-foreground text-sm mb-0.5 truncate">
                                             {worker.name}
@@ -477,14 +425,15 @@ export default function Payroll() {
 
                         {/* Actions */}
                         <div className="flex gap-3">
-                            <Button variant="secondary" className="flex-1 h-10 rounded-lg border border-border">Edit Worker</Button>
-                            <Button className="flex-1 h-10 rounded-lg shadow-sm">Pay Now</Button>
+                            <Button variant="secondary" onClick={() => setIsEditWorkerOpen(true)} className="flex-1 h-10 rounded-lg border border-border">Edit Worker</Button>
+                            <Button onClick={() => { setSelectedWorker(null); setIsNewBatchOpen(true); }} className="flex-1 h-10 rounded-lg shadow-sm">Pay Now</Button>
                         </div>
                     </div>
                 )}
             </DetailPanel>
 
             {/* Batch Detail Panel */}
+            <EditWorkerModal worker={selectedWorker} isOpen={isEditWorkerOpen} onClose={() => setIsEditWorkerOpen(false)} />
             <DetailPanel
                 isOpen={!!selectedBatch}
                 onClose={() => setSelectedBatch(null)}

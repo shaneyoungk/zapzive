@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authMiddleware, AuthRequest } from '../middleware/auth.middleware';
+import { ApiError, parseBoundedLimit, sendApiError } from '../lib/security';
 
 const router = Router();
 
@@ -27,13 +28,20 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
 
         res.json({
             totalBalance: totalBalance._sum.usdValue || 0,
-            monthlyVolume: 0, // In production, calculate this from transactions
+            monthlyVolume: (await prisma.transaction.aggregate({
+                _sum: { amount: true },
+                where: {
+                    companyId: req.companyId,
+                    timestamp: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+                    isIncoming: false,
+                },
+            }))._sum.amount || 0,
             activeWorkers: workerCount,
             activeAgents: agentCount,
             transactionCount: transactionCount
         });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch dashboard stats' });
+        return sendApiError(res, error, 'Failed to fetch dashboard stats');
     }
 });
 
@@ -57,16 +65,22 @@ router.get('/balance', async (req: AuthRequest, res: Response) => {
 
         res.json(balanceBreakdown);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch balance breakdown' });
+        return sendApiError(res, error, 'Failed to fetch balance breakdown');
     }
 });
 
 // GET /api/dashboard/transactions - Get recent transactions
 router.get('/transactions', async (req: AuthRequest, res: Response) => {
     try {
-        const limit = parseInt(req.query.limit as string) || 10;
+        const limit = parseBoundedLimit(req.query.limit, 10, 100);
         const type = req.query.type as string;
         const status = req.query.status as string;
+        if (type && !['payroll', 'remittance', 'escrow', 'deposit', 'withdrawal', 'swap'].includes(type)) {
+            throw new ApiError(422, 'INVALID_TRANSACTION_TYPE', 'Unsupported transaction type.');
+        }
+        if (status && !['pending', 'processing', 'settled', 'failed', 'cancelled'].includes(status)) {
+            throw new ApiError(422, 'INVALID_TRANSACTION_STATUS', 'Unsupported transaction status.');
+        }
 
         const where: any = { companyId: req.companyId };
         if (type) where.type = type;
@@ -80,14 +94,14 @@ router.get('/transactions', async (req: AuthRequest, res: Response) => {
 
         res.json(transactions);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch transactions' });
+        return sendApiError(res, error, 'Failed to fetch transactions');
     }
 });
 
 // GET /api/dashboard/activity - Get recent activity feed
 router.get('/activity', async (req: AuthRequest, res: Response) => {
     try {
-        const limit = parseInt(req.query.limit as string) || 5;
+        const limit = parseBoundedLimit(req.query.limit, 5, 50);
 
         const recentTransactions = await prisma.transaction.findMany({
             where: { companyId: req.companyId },
@@ -113,7 +127,7 @@ router.get('/activity', async (req: AuthRequest, res: Response) => {
 
         res.json(activity);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch activity feed' });
+        return sendApiError(res, error, 'Failed to fetch activity feed');
     }
 });
 

@@ -12,15 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useWorkers, useCreatePayrollBatch } from "@/hooks/use-payroll";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Check, ChevronRight, ChevronLeft, Loader2, Users, DollarSign } from "lucide-react";
+import { Search, Check, ChevronRight, ChevronLeft, Loader2, Users, DollarSign, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
-
 interface NewBatchWizardProps {
     isOpen: boolean;
     onClose: () => void;
 }
-
 export function NewBatchWizard({ isOpen, onClose }: NewBatchWizardProps) {
     const [step, setStep] = useState(1);
     const { data: workers = [] } = useWorkers();
@@ -214,7 +212,12 @@ export function NewBatchWizard({ isOpen, onClose }: NewBatchWizardProps) {
                                                     className="border-border data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
                                                 />
                                                 <div className="flex items-center gap-2">
-                                                    <img src={worker.avatar} alt="" className="w-8 h-8 rounded-lg" />
+                                                    <div
+                                                        aria-hidden="true"
+                                                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#cdd8c8] bg-[#e8eee4] text-[10px] font-semibold tracking-wide text-[#087f5b]"
+                                                    >
+                                                        {worker.name.split(" ").map((part: string) => part[0]).slice(0, 2).join("")}
+                                                    </div>
                                                     <div className="text-left">
                                                         <p className="text-xs font-bold text-foreground">{worker.name}</p>
                                                         <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{worker.country}</p>
@@ -275,7 +278,12 @@ export function NewBatchWizard({ isOpen, onClose }: NewBatchWizardProps) {
                                                 return (
                                                     <div key={workerId} className="flex items-center justify-between p-3 px-4">
                                                         <div className="flex items-center gap-2">
-                                                            <img src={worker?.avatar} alt="" className="w-6 h-6 rounded-md" />
+                                                            <div
+                                                                aria-hidden="true"
+                                                                className="flex h-6 w-6 items-center justify-center rounded-md border border-[#cdd8c8] bg-[#e8eee4] text-[8px] font-semibold tracking-wide text-[#087f5b]"
+                                                            >
+                                                                {worker?.name?.split(" ").map((part: string) => part[0]).slice(0, 2).join("") || "--"}
+                                                            </div>
                                                             <span className="text-xs text-foreground font-medium">{worker?.name}</span>
                                                         </div>
                                                         <span className="text-xs font-bold text-foreground tracking-tight">${parseFloat(v.amount).toLocaleString()}</span>
@@ -324,45 +332,4 @@ export function NewBatchWizard({ isOpen, onClose }: NewBatchWizardProps) {
             </DialogContent>
         </Dialog>
     );
-}
-
-// Helper icons
-function Info(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 16v-4" />
-            <path d="M12 8h.01" />
-        </svg>
-    )
-}
-
-function Play(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <polygon points="5 3 19 12 5 21 5 3" />
-        </svg>
-    )
 }

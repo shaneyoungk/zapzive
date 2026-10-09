@@ -13,8 +13,8 @@ async function main() {
         update: {},
         create: {
             id: demoCompanyId,
-            name: 'GlobalPay Demo Inc.',
-            email: 'contact@globalpay.demo',
+            name: 'Zapzive Demo Inc.',
+            email: 'contact@zapzive.demo',
             phone: '+1 (555) 123-4567',
             country: 'United States',
             address: '123 Finance Street, New York, NY 10001',
@@ -26,11 +26,11 @@ async function main() {
 
     // Create a demo user for this company
     const demoUser = await prisma.user.upsert({
-        where: { email: 'demo@globalpay.com' },
+        where: { email: 'demo@zapzive.com' },
         update: {},
         create: {
             id: 'demo-user-id',
-            email: 'demo@globalpay.com',
+            email: 'demo@zapzive.com',
             name: 'Demo User',
             // scrypt hash for the documented demo password: password123
             password: 'scrypt:0eacad5ab829f243ebb6366562834592:5a613484d93727035d6c7e285d1af4ee56512867b571a721965cabe02904775304a7e571d4c7564bdaaa592eafa56156c6d4df0a842078d8ab473a5423ffeaae',
@@ -44,7 +44,7 @@ async function main() {
     const assets = await Promise.all([
         prisma.asset.upsert({
             where: { companyId_symbol: { companyId: demoCompanyId, symbol: 'USDC' } },
-            update: {},
+            update: { chain: 'Zapzive Sandbox', icon: '/icons/usdc.png' },
             create: {
                 companyId: demoCompanyId,
                 symbol: 'USDC',
@@ -52,14 +52,14 @@ async function main() {
                 balance: 45230.50,
                 usdValue: 45230.50,
                 change24h: 0.01,
-                chain: 'Ethereum',
-                color: 'text-blue-500',
+                chain: 'Zapzive Sandbox',
+                color: '#2775CA',
                 icon: '/icons/usdc.png'
             }
         }),
         prisma.asset.upsert({
             where: { companyId_symbol: { companyId: demoCompanyId, symbol: 'USDT' } },
-            update: {},
+            update: { chain: 'Zapzive Sandbox', icon: '/icons/tether.png' },
             create: {
                 companyId: demoCompanyId,
                 symbol: 'USDT',
@@ -67,14 +67,14 @@ async function main() {
                 balance: 12450.00,
                 usdValue: 12450.00,
                 change24h: -0.02,
-                chain: 'Ethereum',
-                color: 'text-green-500',
-                icon: 'https://img.icons8.com/color/96/tether.png'
+                chain: 'Zapzive Sandbox',
+                color: '#26A17B',
+                icon: '/icons/tether.png'
             }
         }),
         prisma.asset.upsert({
             where: { companyId_symbol: { companyId: demoCompanyId, symbol: 'ETH' } },
-            update: {},
+            update: { chain: 'Zapzive Sandbox', icon: '/icons/ethereum.png' },
             create: {
                 companyId: demoCompanyId,
                 symbol: 'ETH',
@@ -82,10 +82,30 @@ async function main() {
                 balance: 3.56,
                 usdValue: 8727.58,
                 change24h: 2.34,
-                chain: 'Ethereum',
-                color: 'text-indigo-500',
+                chain: 'Zapzive Sandbox',
+                color: '#627EEA',
                 icon: '/icons/ethereum.png'
             }
+        }),
+        prisma.asset.upsert({
+            where: { companyId_symbol: { companyId: demoCompanyId, symbol: 'MATIC' } },
+            update: { chain: 'Zapzive Sandbox', icon: '/icons/polygon.png' },
+            create: { companyId: demoCompanyId, symbol: 'MATIC', name: 'Polygon', balance: 5000, usdValue: 2500, change24h: 0, chain: 'Zapzive Sandbox', color: '#8247E5', icon: '/icons/polygon.png' }
+        }),
+        prisma.asset.upsert({
+            where: { companyId_symbol: { companyId: demoCompanyId, symbol: 'DAI' } },
+            update: { chain: 'Zapzive Sandbox', icon: '/icons/dai.svg' },
+            create: { companyId: demoCompanyId, symbol: 'DAI', name: 'Dai', balance: 50000, usdValue: 50000, change24h: 0, chain: 'Zapzive Sandbox', color: '#F5AC37', icon: '/icons/dai.svg' }
+        }),
+        prisma.asset.upsert({
+            where: { companyId_symbol: { companyId: demoCompanyId, symbol: 'BTC' } },
+            update: { chain: 'Zapzive Sandbox', icon: '/icons/bitcoin.svg' },
+            create: { companyId: demoCompanyId, symbol: 'BTC', name: 'Bitcoin', balance: 1, usdValue: 60000, change24h: 0, chain: 'Zapzive Sandbox', color: '#F7931A', icon: '/icons/bitcoin.svg' }
+        }),
+        prisma.asset.upsert({
+            where: { companyId_symbol: { companyId: demoCompanyId, symbol: 'SOL' } },
+            update: { chain: 'Zapzive Sandbox', icon: '/icons/solana.svg' },
+            create: { companyId: demoCompanyId, symbol: 'SOL', name: 'Solana', balance: 100, usdValue: 15000, change24h: 0, chain: 'Zapzive Sandbox', color: '#14F195', icon: '/icons/solana.svg' }
         })
     ]);
 

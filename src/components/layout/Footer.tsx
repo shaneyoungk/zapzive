@@ -1,104 +1,72 @@
-import { Github, Twitter, Linkedin } from "lucide-react";
+import { FlaskConical } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ZapziveLogo } from "@/components/ui/ZapziveLogo";
 
 const footerLinks = {
-  Product: [
+  Platform: [
     { label: "Payroll", href: "/features#payroll" },
-    { label: "Escrow", href: "/features#escrow" },
-    { label: "Remittance", href: "/features#remit" },
+    { label: "Remittance", href: "/features#remittance" },
     { label: "Treasury", href: "/features#treasury" },
-    { label: "Developer API", href: "/docs" },
+    { label: "Escrow", href: "/features#escrow" },
+    { label: "Controls", href: "/features#controls" },
   ],
   Developers: [
-    { label: "Docs", href: "/docs" },
-    { label: "API Reference", href: "/docs/api-reference" },
-    { label: "Webhooks", href: "/docs/webhooks" },
-    { label: "Sandbox", href: "/docs/testing" },
-    { label: "Status", href: "#" },
+    { label: "Documentation", href: "/docs" },
+    { label: "API reference", href: "/docs/api" },
+    { label: "Examples", href: "/docs/examples" },
+    { label: "Testing", href: "/docs/testing" },
   ],
   Company: [
     { label: "About", href: "/about" },
-    { label: "Security", href: "/features#security" },
-    { label: "Compliance", href: "/docs/compliance" },
     { label: "Contact", href: "/contact" },
+    { label: "Pricing", href: "/pricing" },
   ],
   Legal: [
-    { label: "Terms", href: "#" },
-    { label: "Privacy", href: "#" },
-    { label: "Risk Disclosure", href: "#" },
-    { label: "Cookie Policy", href: "#" },
+    { label: "Terms", href: "/terms" },
+    { label: "Privacy", href: "/privacy" },
+    { label: "Risk disclosure", href: "/risk-disclosure" },
   ],
 };
 
-const socialLinks = [
-  { icon: Twitter, href: "#", label: "Twitter" },
-  { icon: Linkedin, href: "#", label: "LinkedIn" },
-  { icon: Github, href: "#", label: "GitHub" },
-];
-
 export function Footer() {
   return (
-    <footer className="border-t border-border pt-20 pb-10">
-      <div className="container mx-auto px-6 lg:px-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-10 lg:gap-16 mb-16">
-          {/* Brand */}
-          <div className="col-span-2 md:col-span-4 lg:col-span-1 mb-10 lg:mb-0">
-            <Link to="/">
-              <ZapziveLogo size="md" className="mb-6" />
+    <footer className="homepage-dark overflow-hidden border-t border-[#ffffff1f] px-6">
+      <div className="homepage-frame">
+        <div className="grid gap-14 py-16 sm:py-20 lg:grid-cols-[minmax(255px,.82fr)_minmax(0,2fr)] lg:gap-24">
+          <div className="max-w-[330px]">
+            <Link to="/" aria-label="Zapzive home" className="inline-flex border-b border-[#7de0bf] pb-5">
+              <ZapziveLogo size="lg" />
             </Link>
-            <p className="text-sm leading-relaxed text-zinc-500 font-medium">
-              Zapzive is borderless finance, built for teams. Global payroll, automated payments, and treasury management in one unified platform.
-            </p>
-            <div className="flex gap-3 mt-6">
-              {socialLinks.map((social) => (
-                <a
-                  key={social.label}
-                  href={social.href}
-                  aria-label={social.label}
-                  className="w-11 h-11 rounded-xl bg-muted/50 flex items-center justify-center hover:bg-muted transition-all text-muted-foreground hover:text-foreground"
-                >
-                  <social.icon className="w-5 h-5" />
-                </a>
-              ))}
-            </div>
+            <p className="mt-7 font-mono text-[10px] font-semibold uppercase tracking-[.13em] text-[#7de0bf]">Payment operations</p>
+            <h2 className="mt-4 text-3xl font-bold leading-[1.03] tracking-[-.06em] text-[#fffdf8] sm:text-4xl">Prepare, approve, and review payments from one workspace.</h2>
+            <p className="mt-5 text-sm leading-6 text-[#d5d4cb]">Payroll, payouts, escrow, treasury, and the information around every payment stay in one operational record.</p>
           </div>
 
-          {/* Links */}
-          {Object.entries(footerLinks).map(([category, links]) => (
-            <div key={category}>
-              <h4 className="font-bold text-sm uppercase tracking-wider mb-6 text-foreground">
-                {category}
-              </h4>
-              <ul className="space-y-4">
-                {links.map((link) => (
-                  <li key={link.label}>
-                    <Link
-                      to={link.href}
-                      className="text-muted-foreground hover:text-foreground text-base transition-colors font-medium"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <nav aria-label="Footer navigation" className="grid grid-cols-2 gap-x-9 gap-y-12 md:grid-cols-4">
+            {Object.entries(footerLinks).map(([category, links]) => (
+              <div key={category}>
+                <h3 className="font-mono text-[10px] font-semibold uppercase tracking-[.12em] text-[#7de0bf]">{category}</h3>
+                <ul className="mt-6 space-y-4">
+                  {links.map((link) => (
+                    <li key={link.label}>
+                      <Link to={link.href} className="text-sm font-medium text-[#d5d4cb] transition-colors hover:text-[#7de0bf]">{link.label}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </nav>
         </div>
 
-        {/* Bottom */}
-        <div className="pt-10 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-sm text-zinc-600 font-medium">
-            © {new Date().getFullYear()} Zapzive Network. All rights reserved.
+        <div className="flex flex-col gap-4 border-t border-[#ffffff1f] py-7 text-xs text-[#c4c3bb] sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span>{"\u00A9"} {new Date().getFullYear()} Zapzive</span>
+            <span className="hidden h-1 w-1 rounded-full bg-[#7b7b73] sm:block" />
+            <span className="inline-flex items-center gap-2"><FlaskConical size={13} /> Test mode is available. Connected rail availability depends on the selected network.</span>
           </div>
-          <div className="flex items-center gap-6">
-            <span className="text-zinc-600 text-xs font-semibold uppercase tracking-widest">
-              Built on Polygon & Base
-            </span>
-          </div>
+          <Link to="/docs/testing" className="font-semibold text-[#d5d4cb] underline-offset-4 hover:text-[#7de0bf] hover:underline">Read about test mode</Link>
         </div>
       </div>
     </footer>
   );
 }
-

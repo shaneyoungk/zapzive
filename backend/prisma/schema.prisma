@@ -11,15 +11,19 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  name      String
-  password  String    @default("password123")
-  companyId String
-  company   Company   @relation(fields: [companyId], references: [id])
-  lastLogin DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  email           String    @unique
+  name            String
+  password        String
+  role            String    @default("owner")
+  status          String    @default("active")
+  emailVerifiedAt DateTime?
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id])
+  authVersion     Int       @default(0)
+  lastLogin       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Company {
@@ -30,6 +34,8 @@ model Company {
   country         String
   address         String?
   isTestMode      Boolean          @default(true)
+  status          String           @default("active")
+  liveEnabledAt   DateTime?
   users           User[]
   apiKeys         ApiKey[]
   webhooks        Webhook[]
@@ -44,6 +50,11 @@ model Company {
   contracts       Contract[]
   agents          Agent[]
   complianceItems ComplianceItem[]
+  idempotencyKeys IdempotencyKey[]
+  auditEvents     AuditEvent[]
+  cryptoWallets   CryptoWallet[]
+  cryptoChallenges CryptoWalletChallenge[]
+  cryptoPayments  CryptoPayment[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
@@ -112,6 +123,7 @@ model Recipient {
   phone         String
   country       String
   walletAddress String?
+  walletNetwork String? // evm or tron; required context for a wallet payout address
   bankAccount   String?
   mobileNumber  String?
   remittances   Remittance[]
@@ -125,7 +137,7 @@ model Worker {
   company     Company          @relation(fields: [companyId], references: [id])
   name        String
   role        String
-  email       String           @unique
+  email       String
   phone       String
   country     String
   wallet      String
@@ -137,6 +149,8 @@ model Worker {
   payments    PayrollPayment[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+
+  @@unique([companyId, email])
 }
 
 model PayrollBatch {
@@ -269,11 +283,13 @@ model Agent {
   completedTransactions Int                @default(0)
   pendingPayouts        Float              @default(0)
   phone                 String
-  email                 String             @unique
+  email                 String
   joinedDate            DateTime           @default(now())
   transactions          AgentTransaction[]
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
+
+  @@unique([companyId, email])
 }
 
 model AgentTransaction {
@@ -307,6 +323,8 @@ model ApiKey {
   company   Company   @relation(fields: [companyId], references: [id])
   name      String
   key       String    @unique
+  environment String  @default("test")
+  scopes    String    @default("[\"read\",\"write\"]")
   lastUsed  DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -322,4 +340,147 @@ model Webhook {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model IdempotencyKey {
+  id             String   @id @default(uuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id])
+  key            String
+  method         String
+  path           String
+  requestHash    String
+  state          String   @default("processing") // processing, completed, failed
+  responseStatus Int?
+  responseBody   String?
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+
+  @@unique([companyId, key])
+  @@index([companyId, createdAt])
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  requestId  String?
+  metadata   String?
+  createdAt  DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, entityType, entityId])
+}
+
+// On-chain records use integer base-unit strings. Sandbox records reuse the
+// company Asset ledger explicitly and are marked by the Zapzive Sandbox chain.
+model CryptoWallet {
+  id        String   @id @default(uuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  chainId   Int
+  address   String
+  createdBy String
+  createdAt DateTime @default(now())
+  payments  CryptoPayment[]
+
+  @@unique([chainId, address])
+  @@index([companyId])
+}
+
+model CryptoWalletChallenge {
+  id        String   @id @default(uuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  userId    String
+  chainId   Int
+  address   String
+  message   String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([companyId, userId, createdAt])
+}
+
+model CryptoPayment {
+  id            String   @id @default(uuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id])
+  walletId      String
+  wallet        CryptoWallet @relation(fields: [walletId], references: [id])
+  createdBy     String
+  chainId       Int
+  tokenAddress  String
+  symbol        String   @default("USDC")
+  decimals      Int      @default(6)
+  fromAddress   String
+  toAddress     String
+  amountUnits   String
+  reference     String?
+  idempotencyKey String
+  payloadHash   String
+  status        String   @default("awaiting_signature")
+  txHash        String?
+  nonce         Int?
+  createdBlock  String
+  blockNumber   String?
+  blockHash     String?
+  confirmations Int      @default(0)
+  errorCode     String?
+  version       Int      @default(0)
+  attempts      Int      @default(0)
+  nextCheckAt   DateTime @default(now())
+  leaseUntil    DateTime?
+  leaseOwner    String?
+  expiresAt     DateTime
+  settledAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  submissions   CryptoSubmission[]
+  journals      CryptoJournal[]
+
+  @@unique([companyId, idempotencyKey])
+  @@unique([chainId, txHash])
+  @@unique([chainId, fromAddress, nonce])
+  @@index([companyId, createdAt, id])
+  @@index([status, nextCheckAt, leaseUntil])
+}
+
+// Retain every submitted/replacement hash; never recycle a chain transaction.
+model CryptoSubmission {
+  id        String @id @default(uuid())
+  paymentId String
+  payment   CryptoPayment @relation(fields: [paymentId], references: [id])
+  chainId   Int
+  txHash    String
+  nonce     Int
+  createdAt DateTime @default(now())
+
+  @@unique([chainId, txHash])
+}
+
+// Observational double-entry journal: a verified external wallet payment,
+// not a claim that Zapzive holds the wallet's funds.
+model CryptoJournal {
+  id          String @id @default(uuid())
+  paymentId   String
+  payment     CryptoPayment @relation(fields: [paymentId], references: [id])
+  kind        String // settlement or reversal
+  createdAt   DateTime @default(now())
+  entries     CryptoJournalEntry[]
+
+  @@unique([paymentId, kind])
+}
+
+model CryptoJournalEntry {
+  id           String @id @default(uuid())
+  journalId    String
+  journal      CryptoJournal @relation(fields: [journalId], references: [id])
+  account      String
+  amountUnits  String // signed integer; sum across a journal must be zero
 }

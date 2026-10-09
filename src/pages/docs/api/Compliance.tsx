@@ -1,95 +1,30 @@
 import { CodeWindow } from "@/components/docs/CodeWindow";
 import { DocCallout } from "@/components/docs/DocCallout";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, UserCheck, Search, FileLock, UserX, Info } from "lucide-react";
+import { FileCheck2, ListFilter, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 
 export default function ComplianceAPI() {
-    return (
-        <div className="space-y-16 max-w-5xl">
-            <div>
-                <div className="flex items-center gap-3 mb-6">
-                    <h1 className="text-4xl font-bold text-white tracking-tight">Compliance API</h1>
-                    <Badge variant="outline" className="border-emerald-500/20 text-emerald-400">Regulated V2</Badge>
-                </div>
-                <p className="text-xl text-zinc-400 leading-relaxed max-w-3xl">
-                    Automated KYC, KYB, and AML screening. Maintain a global audit trail
-                    and verify identities in seconds with our AI-powered verification engine.
-                </p>
-            </div>
+    return <div className="max-w-5xl space-y-16">
+        <header><div className="mb-6 flex flex-wrap items-center gap-3"><h1 className="text-4xl font-bold tracking-tight text-[#20211e]">Compliance API</h1><Badge variant="outline" className="border-[#cdd8c8] text-[#087f5b]">Sandbox records</Badge></div><p className="max-w-3xl text-xl leading-relaxed text-[#575750]">Create and inspect company-scoped KYC and AML review records. The sandbox stores review intent and status; it does not connect to identity, sanctions, document, or screening providers.</p></header>
+        <DocCallout type="mistake" title="Do not treat a sandbox item as a real verification">A <code>pending</code> item is a local workflow record, not proof of identity, a sanctions decision, or regulatory approval. Provider integrations, document handling, retention controls, and human review are required for production.</DocCallout>
+        <Endpoint title="Submit a KYC review" method="POST" path="/api/compliance/kyc"><div className="space-y-5"><p className="leading-relaxed text-[#575750]">Creates a pending KYC compliance item with an entity label and bounded details.</p><ResponseCode code="201" desc="Pending KYC item" color="emerald" /><ResponseCode code="422" desc="Missing or oversized input" color="zinc" /></div><CodeWindow language="bash" title="cURL" code={`curl -X POST https://your-api.example.com/api/compliance/kyc \\
+  -H "Authorization: Bearer sk_test_..." \\
+  -H "Content-Type: application/json" \\
+  -d '{"entity":"worker_123","details":"Review requested by operations"}'`} /></Endpoint>
+        <Endpoint title="Submit an AML review" method="POST" path="/api/compliance/aml"><div className="space-y-5"><p className="leading-relaxed text-[#575750]">Creates a pending AML review record. No automated provider decision is performed.</p><ResponseCode code="201" desc="Pending AML item" color="emerald" /></div><CodeWindow language="bash" title="cURL" code={`curl -X POST https://your-api.example.com/api/compliance/aml \\
+  -H "Authorization: Bearer sk_test_..." \\
+  -H "Content-Type: application/json" \\
+  -d '{"entity":"recipient_123","details":"Manual review requested"}'`} /></Endpoint>
+        <Endpoint title="List and report compliance items" method="GET" path="/api/compliance/items"><div className="space-y-5"><p className="leading-relaxed text-[#575750]">Filter by <code>type</code>, <code>status</code>, or <code>riskLevel</code>, and use <code>limit</code> to bound the response. The report route is <code>/api/compliance/reports</code>.</p><ResponseCode code="200" desc="Company-scoped items or report summary" color="blue" /></div><CodeWindow language="bash" title="cURL" code={`curl "https://your-api.example.com/api/compliance/items?status=pending&limit=50" \\
+  -H "Authorization: Bearer sk_test_..."
 
-            {/* --- ENDPOINT: CHECK IDENTITY --- */}
-            <section className="space-y-8">
-                <div className="flex items-center gap-3">
-                    <Badge className="bg-emerald-500/10 text-emerald-400 py-1 px-3 border border-emerald-500/20 font-mono">POST</Badge>
-                    <code className="text-xl font-mono text-white">/v1/compliance/verify</code>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-                    <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-zinc-100">Verify Identity</h2>
-                        <p className="text-zinc-400 text-sm">
-                            Submit documents or person data for real-time KYC screening.
-                        </p>
-
-                        <div className="space-y-4">
-                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Response Codes</h3>
-                            <ResponseCode code="200 OK" desc="Verification result returned." color="emerald" />
-                            <ResponseCode code="400 Bad Request" desc="Invalid document image." color="zinc" />
-                        </div>
-                    </div>
-
-                    <div className="space-y-4">
-                        <CodeWindow
-                            language="bash"
-                            title="cURL"
-                            code={`curl https://api.zapzive.com/v1/compliance/verify \\
-  -d full_name="Jane Doe" \\
-  -d dob="1990-01-01" \\
-  -d document_type="passport"`}
-                        />
-                    </div>
-                </div>
-            </section>
-
-            {/* --- ENDPOINT: GET STATUS --- */}
-            <section className="space-y-8 py-16 border-t border-white/5">
-                <div className="flex items-center gap-3">
-                    <Badge className="bg-blue-500/10 text-blue-400 py-1 px-3 border border-blue-500/20 font-mono">GET</Badge>
-                    <code className="text-xl font-mono text-white">/v1/compliance/status/:id</code>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-                    <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-zinc-100">Check Status</h2>
-                        <p className="text-zinc-400 text-sm">
-                            Retrieve the current verification status for a specific person or business.
-                        </p>
-                        <ResponseCode code="200 OK" desc="Returns 'verified', 'pending', or 'rejected'." color="blue" />
-                    </div>
-                </div>
-            </section>
-
-            <DocCallout icon={Info} title="Sanctions Screening">
-                Every verification request automatically checks against OFAC, EU, and UN sanctions lists. Results are updated every 24 hours.
-            </DocCallout>
-        </div>
-    );
+curl "https://your-api.example.com/api/compliance/reports?limit=100" \\
+  -H "Authorization: Bearer sk_test_..."`} /></Endpoint>
+        <section className="grid gap-6 border-t border-[#d9d6cd] pt-12 md:grid-cols-3"><Highlight icon={<ShieldCheck />} title="Company scoped" copy="Every item is queried through the authenticated company." /><Highlight icon={<ListFilter />} title="Explicit filters" copy="Use bounded filters instead of loading an unbounded review queue." /><Highlight icon={<FileCheck2 />} title="Provider boundary" copy="Local status is not a KYC, AML, or sanctions attestation." /></section>
+    </div>;
 }
-
-function ResponseCode({ code, desc, color }: { code: string; desc: string; color: "emerald" | "blue" | "red" | "zinc" }) {
-    const colorClasses = {
-        emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-        blue: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-        red: "bg-red-500/10 text-red-400 border-red-500/20",
-        zinc: "bg-white/5 text-zinc-400 border-white/10"
-    };
-
-    return (
-        <div className={cn("flex items-center gap-4 p-4 rounded-xl border", colorClasses[color])}>
-            <span className="font-mono font-bold text-sm min-w-[100px]">{code}</span>
-            <span className="text-xs opacity-80">{desc}</span>
-        </div>
-    );
-}
-
+function Endpoint({ title, method, path, children }: { title: string; method: string; path: string; children: ReactNode }) { const [details, code] = Array.isArray(children) ? children : [children, null]; return <section className="space-y-8 border-t border-[#d9d6cd] pt-12 first:border-t-0 first:pt-0"><div className="flex flex-wrap items-center gap-3"><Badge className={cn("border px-3 py-1 font-mono", method === "GET" ? "border-blue-500/20 bg-blue-500/10 text-[#087f5b]" : "border-emerald-500/20 bg-emerald-500/10 text-[#087f5b]")}>{method}</Badge><code className="text-xl text-[#20211e]">{path}</code></div><h2 className="text-2xl font-bold text-[#20211e]">{title}</h2><div className="grid gap-10 xl:grid-cols-2"><div>{details}</div><div>{code}</div></div></section>; }
+function ResponseCode({ code, desc, color }: { code: string; desc: string; color: "emerald" | "blue" | "zinc" }) { const colors = { emerald: "border-emerald-500/20 bg-emerald-500/10 text-[#087f5b]", blue: "border-blue-500/20 bg-blue-500/10 text-[#087f5b]", zinc: "border-[#d9d6cd] bg-[#f5f3ee] text-[#575750]" }; return <div className={cn("flex items-center gap-4 rounded-xl border p-4", colors[color])}><span className="min-w-12 font-mono text-sm font-bold">{code}</span><span className="text-xs">{desc}</span></div>; }
+function Highlight({ icon, title, copy }: { icon: ReactNode; title: string; copy: string }) { return <div className="space-y-4 rounded-2xl border border-[#d9d6cd] bg-[#fffdf8] p-6"><div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#cdd8c8] bg-[#e8eee4] text-[#087f5b]">{icon}</div><h3 className="font-bold text-[#20211e]">{title}</h3><p className="text-xs leading-relaxed text-[#77766e]">{copy}</p></div>; }

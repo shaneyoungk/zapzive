@@ -1,127 +1,38 @@
-import { Badge } from "@/components/ui/badge";
-import { DocCallout } from "@/components/docs/DocCallout";
-import { ArrowRight, Globe, ShieldCheck, Zap, Building2, Layers } from "lucide-react";
+import { ArrowRight, Building2, Globe2, Layers3, ShieldCheck, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
+import { DocCallout } from "@/components/docs/DocCallout";
+
+const pillars = [
+  { icon: Globe2, label: "Sandbox corridors", value: "Defined test routes", copy: "Exercise local-currency settlement through one predictable integration." },
+  { icon: ShieldCheck, label: "Compliance", value: "Review records", copy: "Create company-scoped sandbox KYC and AML review items with explicit status." },
+  { icon: Zap, label: "Settlement", value: "Sandbox state", copy: "Track persisted money movement from instruction through the sandbox ledger." },
+];
+
+const flow = [
+  { icon: ShieldCheck, title: "Onboard", copy: "Verify businesses and recipients" },
+  { icon: Building2, title: "Fund", copy: "Allocate treasury balances" },
+  { icon: Layers3, title: "Execute", copy: "Run payouts and payroll" },
+  { icon: Zap, title: "Reconcile", copy: "Sync status and reporting" },
+];
 
 export default function Introduction() {
-    return (
-        <div className="space-y-20 pb-20 max-w-6xl">
-            {/* Hero Section */}
-            <section className="space-y-8">
-                <div className="space-y-4">
-                    <Badge variant="outline" className="text-emerald-400 border-emerald-500/20 bg-emerald-500/5 px-4 py-1 animate-pulse">
-                        Now in Public Beta
-                    </Badge>
-                    <h1 className="text-6xl md:text-7xl font-bold text-white tracking-tight leading-[1.1]">
-                        Build the future of <br />
-                        <span className="text-zinc-50">
-                            Global Money Flow.
-                        </span>
-                    </h1>
-                </div>
-                <p className="text-xl text-zinc-400 leading-relaxed max-w-3xl">
-                    zapzive is a unified API for global payments, treasury, and compliance.
-                    Integrating with local bank rails in 180+ countries through a single,
-                    world-class developer experience.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                    <Link to="/docs/quickstart" className="h-12 px-8 rounded-full bg-white text-black font-bold flex items-center justify-center hover:bg-zinc-200 transition-all group">
-                        Start Integrating
-                        <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                    <Link to="/docs/api" className="h-12 px-8 rounded-full bg-white/5 text-white font-bold border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all">
-                        Explore API Reference
-                    </Link>
-                </div>
-            </section>
+  return <div className="max-w-6xl space-y-20 pb-24">
+    <DocCallout type="info" title="Sandbox first">These guides describe the current Zapzive sandbox. Test balances, quotes, recipients, and settlement records are simulated; live banking, custody, blockchain, FX, and compliance-provider connections are not enabled.</DocCallout>
+    <section className="border-b border-[#d9d6cd] pb-16">
+      <p className="mono-label mb-6 text-[#087f5b]">Developer platform · Sandbox</p>
+      <h1 className="max-w-4xl text-5xl font-semibold leading-[.96] tracking-[-.07em] md:text-7xl">Build a clear<br /><em className="text-[#11a879]">money movement flow.</em></h1>
+      <p className="mt-8 max-w-3xl text-lg leading-8 text-[#575750]">Use one consistent model for payroll, remittance, treasury, and escrow workflows. Every guide shows the request, state, response, and control that comes next.</p>
+      <div className="mt-9 flex flex-col gap-3 sm:flex-row"><Link to="/docs/quickstart" className="inline-flex h-12 items-center justify-center gap-3 rounded-full bg-[#20211e] px-6 text-sm font-semibold text-[#f5f3ee] transition hover:bg-[#11a879] hover:text-[#20211e]">Start integrating <ArrowRight size={16} /></Link><Link to="/docs/api" className="inline-flex h-12 items-center justify-center rounded-full border border-[#b9b7ae] px-6 text-sm font-semibold text-[#20211e] transition hover:border-[#20211e]">Explore API reference</Link></div>
+    </section>
 
-            {/* Core Pillars */}
-            <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <PillarCard
-                    icon={<Globe className="w-6 h-6 text-emerald-400" />}
-                    title="180+ Countries"
-                    desc="Access local clearing systems (SEPA, Faster Payments, ACH) through a single endpoint."
-                />
-                <PillarCard
-                    icon={<ShieldCheck className="w-6 h-6 text-blue-400" />}
-                    title="Built-in Compliance"
-                    desc="Automated KYC, KYB, and AML screening on every transaction, out of the box."
-                />
-                <PillarCard
-                    icon={<Zap className="w-6 h-6 text-amber-400" />}
-                    title="Instant Settlement"
-                    desc="Move funds between currencies and nodes in your network in sub-seconds."
-                />
-            </section>
+    <section><div className="mb-8 flex items-end justify-between gap-6"><div><p className="mono-label text-[#087f5b]">Platform fundamentals</p><h2 className="mt-3 text-3xl font-semibold tracking-[-.055em]">A clear foundation for every workflow.</h2></div><p className="hidden max-w-sm text-sm leading-6 text-[#77766e] md:block">Stable primitives make complex finance operations easier to build, test, and maintain.</p></div><div className="grid overflow-hidden rounded-[20px] border border-[#d9d6cd] bg-[#d9d6cd] md:grid-cols-3">{pillars.map(({ icon: Icon, label, value, copy }) => <article key={label} className="bg-[#fffdf8] p-7"><span className="product-icon"><Icon size={18} /></span><p className="mono-label mt-8 text-[#77766e]">{label}</p><h3 className="mt-2 text-xl font-semibold tracking-[-.04em]">{value}</h3><p className="mt-3 text-sm leading-6 text-[#575750]">{copy}</p></article>)}</div></section>
 
-            <DocCallout type="info" title="Professional Standard">
-                This documentation is designed to be battle-tested and fail-safe. If you encounter any
-                unclear instructions, please reach out via our
-                <a href="#" className="text-emerald-400 ml-1">Developer Support Portal</a>.
-            </DocCallout>
+    <DocCallout type="info" title="Implementation standard">Every guide includes expected requests, response states, and failure paths. Use the testing environment before creating live credentials.</DocCallout>
 
-            {/* Integration Flow */}
-            <section className="space-y-12">
-                <div className="text-center space-y-4">
-                    <h2 className="text-3xl font-bold text-white">The zapzive Ecosystem</h2>
-                    <p className="text-zinc-500">How our different modules work together to power your platform.</p>
-                </div>
+    <section className="flex flex-col justify-between gap-6 rounded-[20px] border border-[#cdd8c8] bg-[#e8eee4] p-7 md:flex-row md:items-center"><div><p className="mono-label text-[#087f5b]">Examples</p><h2 className="mt-3 text-2xl">See complete solutions, end to end.</h2><p className="mt-2 max-w-xl text-sm leading-6 text-[#575750]">Start with payroll, supplier payouts, marketplace escrow, or treasury settlement and follow the full implementation path.</p></div><Link to="/docs/examples" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#11a879] px-5 py-3.5 text-sm font-semibold text-[#20211e]">Browse examples <ArrowRight size={15} /></Link></section>
 
-                <div className="relative p-12 rounded-[2rem] bg-zinc-900/50 border border-white/5 overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-blue-500/5" />
-                    <div className="relative grid grid-cols-1 md:grid-cols-4 gap-8">
-                        <FlowItem step="1" title="Onboard" desc="Compliance & KYC Verification" icon={<ShieldCheck className="w-6 h-6" />} />
-                        <FlowItem step="2" title="Fund" desc="Treasury & Asset Management" icon={<Building2 className="w-6 h-6" />} />
-                        <FlowItem step="3" title="Execute" desc="Remittance & Payroll Actions" icon={<Layers className="w-6 h-6" />} />
-                        <FlowItem step="4" title="Scale" desc="Real-time Analytics & Insights" icon={<Zap className="w-6 h-6" />} />
-                    </div>
-                </div>
-            </section>
+    <section><div className="grid gap-10 lg:grid-cols-[.65fr_1.35fr]"><div><p className="mono-label text-[#087f5b]">Connected by design</p><h2 className="mt-4 text-4xl font-semibold leading-[1.02] tracking-[-.06em]">One lifecycle,<br />not four products.</h2><p className="mt-5 text-sm leading-6 text-[#575750]">Identity, funding, execution, and reporting share the same operational record.</p></div><div className="rounded-[20px] border border-[#34352f] bg-[#20211e] p-6 text-[#f5f3ee] sm:p-8"><div className="divide-y divide-[#ffffff1a]">{flow.map(({ icon: Icon, title, copy }, index) => <div key={title} className="grid grid-cols-[40px_1fr_auto] items-center gap-4 py-5 first:pt-0 last:pb-0"><span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#11a87944] bg-[#11a87914] text-[#76d4b5]"><Icon size={17} /></span><div><p className="text-sm font-semibold">{title}</p><p className="mt-1 text-xs text-[#aaa9a1]">{copy}</p></div><span className="font-mono text-[10px] text-[#76d4b5]">0{index + 1}</span></div>)}</div></div></div></section>
 
-            <section className="bg-white/[0.02] border border-white/5 rounded-3xl p-12 text-center space-y-6">
-                <h3 className="text-2xl font-bold text-white">Ready to move money?</h3>
-                <p className="text-zinc-500 max-w-2xl mx-auto">
-                    Our SDKs support Node.js, Python, and React. Jump into our quickstart guide
-                    to send your first $1.00 in less than 5 minutes.
-                </p>
-                <Link to="/docs/quickstart">
-                    <button className="h-10 px-6 rounded-full bg-emerald-500 text-black font-bold text-sm hover:bg-emerald-400 transition-all">
-                        Get Your Test Keys
-                    </button>
-                </Link>
-            </section>
-        </div>
-    );
+    <section className="flex flex-col justify-between gap-8 rounded-[20px] border border-[#cdd8c8] bg-[#e8eee4] p-8 md:flex-row md:items-center"><div><p className="mono-label text-[#087f5b]">First request</p><h3 className="mt-3 text-2xl font-semibold tracking-[-.05em]">Send a test payment in under five minutes.</h3><p className="mt-2 text-sm text-[#575750]">SDKs are available for Node.js, Python, and React.</p></div><Link to="/docs/quickstart" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#11a879] px-6 py-3.5 text-sm font-semibold text-[#20211e]">Get test keys <ArrowRight size={15} /></Link></section>
+  </div>;
 }
-
-function PillarCard({ icon, title, desc }: { icon: any; title: string; desc: string }) {
-    return (
-        <div className="p-8 rounded-3xl bg-white/[0.02] border border-white/5 space-y-4 hover:border-white/10 transition-colors">
-            <div className="w-12 h-12 rounded-2xl bg-white/[0.05] flex items-center justify-center border border-white/5">
-                {icon}
-            </div>
-            <h3 className="text-xl font-bold text-white">{title}</h3>
-            <p className="text-sm text-zinc-500 leading-relaxed">{desc}</p>
-        </div>
-    );
-}
-
-function FlowItem({ step, title, desc, icon }: { step: string; title: string; desc: string; icon: any }) {
-    return (
-        <div className="text-center space-y-4">
-            <div className="relative inline-block">
-                <div className="w-16 h-16 rounded-2xl bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 mb-2 mx-auto">
-                    {icon}
-                </div>
-                <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-emerald-500 text-black text-[10px] font-bold flex items-center justify-center border-2 border-zinc-950">
-                    {step}
-                </div>
-            </div>
-            <div className="space-y-1">
-                <h4 className="font-bold text-white">{title}</h4>
-                <p className="text-[10px] text-zinc-600 leading-relaxed uppercase tracking-widest">{desc}</p>
-            </div>
-        </div>
-    );
-}
-

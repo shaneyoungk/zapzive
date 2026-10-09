@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import { authMiddleware, AuthRequest } from '../middleware/auth.middleware';
+import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth.middleware';
+import { ApiError, audit, executeIdempotent, optionalText, parseBoundedLimit, parsePositiveAmount, requiredText, safeEmail, sandboxReference, sendApiError } from '../lib/security';
 
 const router = Router();
 
@@ -9,47 +10,62 @@ const router = Router();
 // GET /api/escrow/public/:id - Get public contract details
 router.get('/public/:id', async (req: Request, res: Response) => {
     try {
-        // Increment views
-        const contract = await prisma.contract.update({
-            where: { id: req.params.id },
-            data: { views: { increment: 1 } },
-            include: {
-                milestones: true,
-                company: {
-                    select: { name: true, country: true }
-                }
-            }
+        const contract = await prisma.contract.findFirst({
+            where: { id: req.params.id, isPublic: true },
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                client: true,
+                contractor: true,
+                totalAmount: true,
+                lockedAmount: true,
+                releasedAmount: true,
+                status: true,
+                startDate: true,
+                endDate: true,
+                chain: true,
+                milestones: {
+                    select: { id: true, title: true, description: true, amount: true, status: true, dueDate: true },
+                    orderBy: { dueDate: 'asc' },
+                },
+                company: { select: { name: true, country: true } },
+            },
         });
-
-        if (!contract || !contract.isPublic) {
-            return res.status(404).json({ error: 'Contract not found or not public' });
-        }
-
+        if (!contract) return res.status(404).json({ error: 'Contract not found or not public', code: 'NOT_FOUND' });
         res.json(contract);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch public contract' });
+        return sendApiError(res, error, 'Failed to fetch public contract');
     }
 });
 
 // POST /api/escrow/public/:id/bid - Submit a bid
 router.post('/public/:id/bid', async (req: Request, res: Response) => {
     try {
-        const { contractorName, contractorEmail, proposal, amount } = req.body;
+        const contractorName = requiredText(req.body?.contractorName, 'contractorName', 120);
+        const contractorEmail = safeEmail(req.body?.contractorEmail);
+        const proposal = requiredText(req.body?.proposal, 'proposal', 5000);
+        const bidAmount = parsePositiveAmount(req.body?.amount, 'amount');
+        const publicContract = await prisma.contract.findFirst({
+            where: { id: req.params.id, isPublic: true, status: 'draft' },
+            select: { id: true },
+        });
+        if (!publicContract) return res.status(404).json({ error: 'Contract not found or no longer accepting bids', code: 'NOT_FOUND' });
 
         const bid = await prisma.contractBid.create({
             data: {
-                contractId: req.params.id,
+                contractId: publicContract.id,
                 contractorName,
                 contractorEmail,
                 proposal,
-                amount,
+                amount: bidAmount,
                 status: 'pending'
             }
         });
 
         res.status(201).json(bid);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to submit bid' });
+        return sendApiError(res, error, 'Failed to submit bid');
     }
 });
 
@@ -62,6 +78,10 @@ router.use(authMiddleware as any);
 router.get('/contracts', async (req: AuthRequest, res: Response) => {
     try {
         const status = req.query.status as string;
+        const limit = parseBoundedLimit(req.query.limit, 50, 100);
+        if (status && !['draft', 'active', 'funded', 'completed', 'disputed', 'cancelled'].includes(status)) {
+            throw new ApiError(422, 'INVALID_CONTRACT_STATUS', 'Unsupported contract status.');
+        }
         const where: any = { companyId: req.companyId };
         if (status) where.status = status;
 
@@ -73,13 +93,13 @@ router.get('/contracts', async (req: AuthRequest, res: Response) => {
                     select: { bids: true }
                 }
             },
+            take: limit,
             orderBy: { createdAt: 'desc' }
         });
 
         res.json(contracts);
     } catch (error) {
-        console.error('Error fetching contracts:', error);
-        res.status(500).json({ error: 'Failed to fetch contracts' });
+        return sendApiError(res, error, 'Failed to fetch contracts');
     }
 });
 
@@ -108,13 +128,12 @@ router.get('/contracts/:id', authMiddleware, async (req: AuthRequest, res: Respo
 
         res.json(contract);
     } catch (error) {
-        console.error('Error fetching contract:', error);
-        res.status(500).json({ error: 'Failed to fetch contract' });
+        return sendApiError(res, error, 'Failed to fetch contract');
     }
 });
 
 // PUT /api/escrow/contracts/:id/bids/:bidId/accept - Accept a bid
-router.put('/contracts/:id/bids/:bidId/accept', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.put('/contracts/:id/bids/:bidId/accept', requireRole('owner', 'admin', 'approver'), async (req: AuthRequest, res: Response) => {
     try {
         // Verify contract ownership
         const contract = await prisma.contract.findFirst({
@@ -140,43 +159,65 @@ router.put('/contracts/:id/bids/:bidId/accept', authMiddleware, async (req: Auth
             return res.status(404).json({ error: 'Bid not found' });
         }
 
-        // Update bid status to accepted
-        await prisma.contractBid.update({
-            where: { id: req.params.bidId },
-            data: { status: 'accepted' }
+        if (contract.status !== 'draft' || bid.status !== 'pending') {
+            throw new ApiError(409, 'INVALID_BID_STATE', 'Only a pending bid on a draft contract can be accepted.');
+        }
+        const result = await executeIdempotent(req.companyId!, req, async () => {
+            const accepted = await prisma.$transaction(async (tx) => {
+                const debit = await tx.asset.updateMany({
+                    where: { companyId: req.companyId!, symbol: 'USDC', balance: { gte: bid.amount } },
+                    data: { balance: { decrement: bid.amount }, usdValue: { decrement: bid.amount } },
+                });
+                if (debit.count !== 1) {
+                    throw new ApiError(409, 'INSUFFICIENT_BALANCE', 'The treasury does not have enough USDC to fund this contract.');
+                }
+                await tx.contractBid.update({ where: { id: bid.id }, data: { status: 'accepted' } });
+                await tx.contractBid.updateMany({
+                    where: { contractId: contract.id, id: { not: bid.id }, status: 'pending' },
+                    data: { status: 'rejected' },
+                });
+                const fundedContract = await tx.contract.update({
+                    where: { id: contract.id },
+                    data: {
+                        contractor: bid.contractorName,
+                        status: 'active',
+                        totalAmount: bid.amount,
+                        lockedAmount: bid.amount,
+                        isPublic: false,
+                    },
+                    include: { milestones: true },
+                });
+                await tx.transaction.create({
+                    data: {
+                        companyId: req.companyId!,
+                        type: 'escrow',
+                        description: 'Escrow funded: ' + contract.title,
+                        amount: bid.amount,
+                        currency: 'USDC',
+                        isIncoming: false,
+                        status: 'settled',
+                        chain: 'Sandbox',
+                        txHash: sandboxReference('escrow-fund'),
+                    },
+                });
+                return fundedContract;
+            });
+            await audit(req.companyId!, 'escrow.bid_accepted', 'contract', {
+                actorId: req.user?.id,
+                entityId: contract.id,
+                requestId: res.locals.requestId,
+                metadata: { bidId: bid.id, amount: bid.amount },
+            });
+            return { status: 200, body: accepted };
         });
-
-        // Update contract with contractor info and set to active
-        await prisma.contract.update({
-            where: { id: req.params.id },
-            data: {
-                contractor: bid.contractorName,
-                status: 'active',
-                totalAmount: bid.amount,
-                lockedAmount: bid.amount,
-                isPublic: false // Close public bidding
-            }
-        });
-
-        // Reject all other bids for this contract
-        await prisma.contractBid.updateMany({
-            where: {
-                contractId: req.params.id,
-                id: { not: req.params.bidId },
-                status: 'pending'
-            },
-            data: { status: 'rejected' }
-        });
-
-        res.json({ message: 'Bid accepted successfully' });
+        res.status(result.status).json(result.body);
     } catch (error) {
-        console.error('Error accepting bid:', error);
-        res.status(500).json({ error: 'Failed to accept bid' });
+        return sendApiError(res, error, 'Failed to accept bid');
     }
 });
 
 // PUT /api/escrow/contracts/:id/bids/:bidId/reject - Reject a bid
-router.put('/contracts/:id/bids/:bidId/reject', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.put('/contracts/:id/bids/:bidId/reject', requireRole('owner', 'admin', 'approver'), async (req: AuthRequest, res: Response) => {
     try {
         // Verify contract ownership
         const contract = await prisma.contract.findFirst({
@@ -205,64 +246,12 @@ router.put('/contracts/:id/bids/:bidId/reject', authMiddleware, async (req: Auth
 
         res.json({ message: 'Bid rejected successfully' });
     } catch (error) {
-        console.error('Error rejecting bid:', error);
-        res.status(500).json({ error: 'Failed to reject bid' });
-    }
-});
-
-// PUT /api/escrow/contracts/:id/release - Release funds
-router.put('/contracts/:id/release', authMiddleware, async (req: AuthRequest, res: Response) => {
-    try {
-        const { amount } = req.body;
-
-        // Verify contract ownership
-        const contract = await prisma.contract.findFirst({
-            where: {
-                id: req.params.id,
-                companyId: req.companyId
-            }
-        });
-
-        if (!contract) {
-            return res.status(404).json({ error: 'Contract not found' });
-        }
-
-        if (contract.lockedAmount < amount) {
-            return res.status(400).json({ error: 'Insufficient locked funds' });
-        }
-
-        // Update contract amounts
-        await prisma.contract.update({
-            where: { id: req.params.id },
-            data: {
-                lockedAmount: contract.lockedAmount - amount,
-                releasedAmount: contract.releasedAmount + amount
-            }
-        });
-
-        // Create transaction record
-        await prisma.transaction.create({
-            data: {
-                companyId: req.companyId!,
-                type: 'escrow',
-                description: `Funds released for contract: ${contract.title}`,
-                amount: amount,
-                currency: 'USDC',
-                isIncoming: false,
-                status: 'settled',
-                chain: contract.chain
-            }
-        });
-
-        res.json({ message: 'Funds released successfully' });
-    } catch (error) {
-        console.error('Error releasing funds:', error);
-        res.status(500).json({ error: 'Failed to release funds' });
+        return sendApiError(res, error, 'Failed to reject bid');
     }
 });
 
 // POST /api/escrow/contracts - Create contract
-router.post('/contracts', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/contracts', requireRole('owner', 'admin', 'operator'), async (req: AuthRequest, res: Response) => {
     try {
         const {
             title,
@@ -275,62 +264,78 @@ router.post('/contracts', authMiddleware, async (req: AuthRequest, res: Response
             milestones,
             isPublic
         } = req.body;
+        const normalizedTitle = requiredText(title, 'title', 160);
+        const normalizedDescription = optionalText(description, 'description', 5000);
+        const normalizedClient = requiredText(client, 'client', 160);
+        const normalizedContractor = requiredText(contractor, 'contractor', 160);
+        const parsedTotalAmount = parsePositiveAmount(totalAmount, 'totalAmount');
+        const normalizedStartDate = new Date(String(startDate));
+        const normalizedEndDate = new Date(String(endDate));
+        if (Number.isNaN(normalizedStartDate.getTime()) || Number.isNaN(normalizedEndDate.getTime()) || normalizedEndDate < normalizedStartDate) {
+            throw new ApiError(422, 'INVALID_CONTRACT_DATES', 'Contract dates must be valid and the end date must follow the start date.');
+        }
+        if (!Array.isArray(milestones) || milestones.length === 0 || milestones.length > 50) {
+            throw new ApiError(422, 'INVALID_MILESTONES', 'Provide between 1 and 50 milestones.');
+        }
+        const normalizedMilestones = milestones.map((milestone: unknown) => {
+            const item = milestone as Record<string, unknown>;
+            return {
+                title: requiredText(item.title, 'milestone.title', 160),
+                description: requiredText(item.description, 'milestone.description', 1000),
+                amount: parsePositiveAmount(item.amount, 'milestone.amount'),
+                dueDate: new Date(String(item.dueDate)),
+            };
+        });
+        if (normalizedMilestones.some((milestone) => Number.isNaN(milestone.dueDate.getTime()))) {
+            throw new ApiError(422, 'INVALID_MILESTONE_DATE', 'Every milestone must have a valid due date.');
+        }
+        const milestoneTotal = normalizedMilestones.reduce((sum, milestone) => sum + milestone.amount, 0);
+        if (Math.abs(milestoneTotal - parsedTotalAmount) > 0.000001) {
+            throw new ApiError(422, 'MILESTONE_TOTAL_MISMATCH', 'Milestone amounts must equal the contract total.');
+        }
 
-        const contract = await prisma.contract.create({
+        const result = await executeIdempotent(req.companyId!, req, async () => {
+            const contract = await prisma.contract.create({
             data: {
                 companyId: req.companyId!,
-                title,
-                description,
-                client,
-                contractor,
-                totalAmount,
-                lockedAmount: totalAmount,
+                title: normalizedTitle,
+                description: normalizedDescription,
+                client: normalizedClient,
+                contractor: normalizedContractor,
+                totalAmount: parsedTotalAmount,
+                lockedAmount: 0,
                 releasedAmount: 0,
                 status: 'draft',
-                isPublic: isPublic || false,
-                startDate: new Date(startDate),
-                endDate: new Date(endDate),
-                chain: 'Ethereum',
-                contractAddress: `0x${Math.random().toString(16).substr(2, 40)}`,
-                milestones: {
-                    create: milestones.map((m: any) => ({
-                        title: m.title,
-                        description: m.description,
-                        amount: m.amount,
-                        status: 'pending',
-                        dueDate: new Date(m.dueDate)
+                isPublic: isPublic === true,
+                startDate: normalizedStartDate,
+                endDate: normalizedEndDate,
+                chain: 'Sandbox',
+                contractAddress: null,
+                 milestones: {
+                     create: normalizedMilestones.map((milestone) => ({
+                         title: milestone.title,
+                         description: milestone.description,
+                         amount: milestone.amount,
+                         status: 'pending',
+                         dueDate: milestone.dueDate
                     }))
                 }
             },
             include: {
                 milestones: true
             }
+            });
+            await audit(req.companyId!, 'escrow.contract_created', 'contract', {
+                actorId: req.user?.id,
+                entityId: contract.id,
+                requestId: res.locals.requestId,
+            });
+            return { status: 201, body: contract };
         });
 
-        res.status(201).json(contract);
+        res.status(result.status).json(result.body);
     } catch (error) {
-        console.error('Error creating contract:', error);
-        res.status(500).json({ error: 'Failed to create contract' });
-    }
-});
-
-// GET /api/escrow/contracts/:id - Get contract details
-router.get('/contracts/:id', async (req: Request, res: Response) => {
-    try {
-        const contract = await prisma.contract.findUnique({
-            where: { id: req.params.id },
-            include: {
-                milestones: true
-            }
-        });
-
-        if (!contract) {
-            return res.status(404).json({ error: 'Contract not found' });
-        }
-
-        res.json(contract);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch contract' });
+        return sendApiError(res, error, 'Failed to create contract');
     }
 });
 
@@ -339,9 +344,18 @@ router.put('/contracts/:id', async (req: AuthRequest, res: Response) => {
     try {
         const existing = await prisma.contract.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
         if (!existing) return res.status(404).json({ error: 'Contract not found' });
+        const data = {
+            title: req.body?.title === undefined ? undefined : requiredText(req.body.title, 'title', 160),
+            description: req.body?.description === undefined ? undefined : requiredText(req.body.description, 'description', 5000),
+            client: req.body?.client === undefined ? undefined : requiredText(req.body.client, 'client', 160),
+            contractor: req.body?.contractor === undefined ? undefined : requiredText(req.body.contractor, 'contractor', 160),
+            startDate: req.body?.startDate === undefined ? undefined : new Date(String(req.body.startDate)),
+            endDate: req.body?.endDate === undefined ? undefined : new Date(String(req.body.endDate)),
+            isPublic: req.body?.isPublic === undefined ? undefined : req.body.isPublic === true,
+        };
         const contract = await prisma.contract.update({
             where: { id: req.params.id },
-            data: req.body,
+            data,
             include: {
                 milestones: true
             }
@@ -349,117 +363,187 @@ router.put('/contracts/:id', async (req: AuthRequest, res: Response) => {
 
         res.json(contract);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to update contract' });
+        return sendApiError(res, error, 'Failed to update contract');
     }
 });
 
 // POST /api/escrow/contracts/:id/milestones - Add milestone
-router.post('/contracts/:id/milestones', async (req: AuthRequest, res: Response) => {
+router.post('/contracts/:id/milestones', requireRole('owner', 'admin', 'operator'), async (req: AuthRequest, res: Response) => {
     try {
-        const { title, description, amount, dueDate } = req.body;
+        const title = requiredText(req.body?.title, 'title', 160);
+        const description = requiredText(req.body?.description, 'description', 1000);
+        const parsedAmount = parsePositiveAmount(req.body?.amount, 'amount');
+        const normalizedDueDate = new Date(String(req.body?.dueDate));
+        if (Number.isNaN(normalizedDueDate.getTime())) throw new ApiError(422, 'INVALID_MILESTONE_DATE', 'dueDate must be a valid date.');
         const contract = await prisma.contract.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
         if (!contract) return res.status(404).json({ error: 'Contract not found' });
+        if (contract.status !== 'draft') throw new ApiError(409, 'INVALID_CONTRACT_STATE', 'Milestones can only be added while the contract is a draft.');
 
         const milestone = await prisma.milestone.create({
             data: {
                 contractId: req.params.id,
                 title,
                 description,
-                amount,
+                amount: parsedAmount,
                 status: 'pending',
-                dueDate: new Date(dueDate)
+                dueDate: normalizedDueDate
             }
         });
 
         res.status(201).json(milestone);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to add milestone' });
+        return sendApiError(res, error, 'Failed to add milestone');
     }
 });
 
 // PUT /api/escrow/contracts/:contractId/milestones/:milestoneId - Update milestone
-router.put('/contracts/:contractId/milestones/:milestoneId', async (req: AuthRequest, res: Response) => {
+router.put('/contracts/:contractId/milestones/:milestoneId', requireRole('owner', 'admin', 'operator'), async (req: AuthRequest, res: Response) => {
     try {
         const contract = await prisma.contract.findFirst({ where: { id: req.params.contractId, companyId: req.companyId } });
         if (!contract) return res.status(404).json({ error: 'Contract not found' });
         const existingMilestone = await prisma.milestone.findFirst({ where: { id: req.params.milestoneId, contractId: contract.id } });
         if (!existingMilestone) return res.status(404).json({ error: 'Milestone not found' });
+        const data = {
+            title: req.body?.title === undefined ? undefined : requiredText(req.body.title, 'title', 160),
+            description: req.body?.description === undefined ? undefined : requiredText(req.body.description, 'description', 1000),
+            amount: req.body?.amount === undefined ? undefined : parsePositiveAmount(req.body.amount, 'amount'),
+            dueDate: req.body?.dueDate === undefined ? undefined : new Date(String(req.body.dueDate)),
+            status: req.body?.status === undefined ? undefined : requiredText(req.body.status, 'status', 30),
+        };
+        if (data.status !== undefined && !['pending', 'in-progress', 'completed', 'disputed'].includes(data.status)) {
+            throw new ApiError(422, 'INVALID_MILESTONE_STATUS', 'Unsupported milestone status.');
+        }
         const milestone = await prisma.milestone.update({
             where: { id: req.params.milestoneId },
-            data: req.body
+            data
         });
 
         res.json(milestone);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to update milestone' });
+        return sendApiError(res, error, 'Failed to update milestone');
     }
 });
 
 // POST /api/escrow/contracts/:contractId/release - Release funds
-router.post('/contracts/:contractId/release', async (req: AuthRequest, res: Response) => {
+router.post('/contracts/:contractId/release', requireRole('owner', 'admin', 'approver'), async (req: AuthRequest, res: Response) => {
     try {
         const { milestoneId, amount } = req.body;
-
-        // Update milestone status
-        await prisma.milestone.update({
-            where: { id: milestoneId },
-            data: {
-                status: 'released',
-                completedDate: new Date()
-            }
+        const parsedAmount = parsePositiveAmount(amount, 'amount');
+        const contractForRelease = await prisma.contract.findFirst({
+            where: { id: req.params.contractId, companyId: req.companyId },
         });
-
-        // Update contract amounts
-        const contract = await prisma.contract.update({
-            where: { id: req.params.contractId },
-            data: {
-                lockedAmount: { decrement: amount },
-                releasedAmount: { increment: amount }
-            },
-            include: {
-                milestones: true
-            }
+        if (!contractForRelease) return res.status(404).json({ error: 'Contract not found', code: 'NOT_FOUND' });
+        if (!['active', 'funded'].includes(contractForRelease.status)) {
+            throw new ApiError(409, 'INVALID_CONTRACT_STATE', 'This contract is not ready for release.');
+        }
+        if (contractForRelease.lockedAmount < parsedAmount) {
+            throw new ApiError(409, 'INSUFFICIENT_LOCKED_FUNDS', 'The release exceeds the locked balance.');
+        }
+        const milestoneForRelease = await prisma.milestone.findFirst({
+            where: { id: milestoneId, contractId: contractForRelease.id },
         });
+        if (!milestoneForRelease) return res.status(404).json({ error: 'Milestone not found', code: 'NOT_FOUND' });
+        if (['released', 'disputed'].includes(milestoneForRelease.status)) {
+            throw new ApiError(409, 'INVALID_MILESTONE_STATE', 'This milestone cannot be released in its current state.');
+        }
+        if (Math.abs(milestoneForRelease.amount - parsedAmount) > 0.000001) {
+            throw new ApiError(409, 'MILESTONE_AMOUNT_MISMATCH', 'The release amount must equal the milestone amount.');
+        }
 
-        // Create transaction record
-        await prisma.transaction.create({
-            data: {
-                companyId: req.companyId!,
-                type: 'escrow',
-                description: `Escrow release: ${contract.title}`,
-                amount,
-                currency: 'USDC',
-                isIncoming: false,
-                status: 'settled',
-                chain: 'Ethereum',
-                txHash: `0x${Math.random().toString(16).substr(2, 64)}`
-            }
+        const result = await executeIdempotent(req.companyId!, req, async () => {
+            const updatedContract = await prisma.$transaction(async (tx) => {
+                const updatedMilestone = await tx.milestone.updateMany({
+                    where: {
+                        id: milestoneForRelease.id,
+                        contractId: contractForRelease.id,
+                        status: { notIn: ['released', 'disputed'] },
+                    },
+                    data: { status: 'released', completedDate: new Date() },
+                });
+                if (updatedMilestone.count !== 1) {
+                    throw new ApiError(409, 'INVALID_MILESTONE_STATE', 'This milestone has already been released or disputed.');
+                }
+                const updated = await tx.contract.updateMany({
+                    where: {
+                        id: contractForRelease.id,
+                        companyId: req.companyId!,
+                        lockedAmount: { gte: parsedAmount },
+                    },
+                    data: {
+                        lockedAmount: { decrement: parsedAmount },
+                        releasedAmount: { increment: parsedAmount },
+                    },
+                });
+                if (updated.count !== 1) {
+                    throw new ApiError(409, 'INSUFFICIENT_LOCKED_FUNDS', 'The release exceeds the locked balance.');
+                }
+                await tx.transaction.create({
+                    data: {
+                        companyId: req.companyId!,
+                        type: 'escrow',
+                        description: 'Escrow release: ' + contractForRelease.title,
+                        amount: parsedAmount,
+                        currency: 'USDC',
+                        isIncoming: false,
+                        status: 'settled',
+                        chain: 'Sandbox',
+                        txHash: sandboxReference('escrow'),
+                    },
+                });
+                return tx.contract.findFirst({
+                    where: { id: contractForRelease.id, companyId: req.companyId },
+                    include: { milestones: true },
+                });
+            });
+            await audit(req.companyId!, 'escrow.milestone_released', 'contract', {
+                actorId: req.user?.id,
+                entityId: contractForRelease.id,
+                requestId: res.locals.requestId,
+                metadata: { milestoneId, amount: parsedAmount },
+            });
+            return { status: 200, body: updatedContract };
         });
-
-        res.json(contract);
+        res.status(result.status).json(result.body);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to release funds' });
+        return sendApiError(res, error, 'Failed to release funds');
     }
 });
 
 // POST /api/escrow/contracts/:id/dispute - Raise dispute
-router.post('/contracts/:id/dispute', async (req: AuthRequest, res: Response) => {
+router.post('/contracts/:id/dispute', requireRole('owner', 'admin', 'approver'), async (req: AuthRequest, res: Response) => {
     try {
-        const { reason } = req.body;
+        const reason = requiredText(req.body?.reason, 'reason', 2000);
         const existing = await prisma.contract.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
         if (!existing) return res.status(404).json({ error: 'Contract not found' });
+        if (!['active', 'funded'].includes(existing.status)) {
+            throw new ApiError(409, 'INVALID_CONTRACT_STATE', 'Only an active or funded contract can be disputed.');
+        }
 
-        const contract = await prisma.contract.update({
-            where: { id: req.params.id },
-            data: { status: 'disputed' },
-            include: {
-                milestones: true
-            }
+        const result = await executeIdempotent(req.companyId!, req, async () => {
+            const contract = await prisma.$transaction(async (tx) => {
+                const changed = await tx.contract.updateMany({
+                    where: { id: existing.id, companyId: req.companyId!, status: { in: ['active', 'funded'] } },
+                    data: { status: 'disputed' },
+                });
+                if (changed.count !== 1) {
+                    throw new ApiError(409, 'INVALID_CONTRACT_STATE', 'This contract is no longer available for dispute.');
+                }
+                return tx.contract.findFirst({
+                    where: { id: existing.id, companyId: req.companyId! },
+                    include: { milestones: true },
+                });
+            });
+            await audit(req.companyId!, 'escrow.contract_disputed', 'contract', {
+                actorId: req.user?.id,
+                entityId: existing.id,
+                requestId: res.locals.requestId,
+                metadata: { reason },
+            });
+            return { status: 200, body: contract };
         });
-
-        res.json(contract);
+        res.status(result.status).json(result.body);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to raise dispute' });
+        return sendApiError(res, error, 'Failed to raise dispute');
     }
 });
 

@@ -1,460 +1,246 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
-    LayoutDashboard,
-    Wallet,
-    ShieldCheck,
-    Users,
-    Search,
-    Menu,
-    X,
-    ChevronDown,
-    Zap,
-    Settings,
-    HelpCircle,
-    Send,
-    BarChart3,
-    Shield,
-    MapPin,
-    ChevronLeft,
-    ChevronRight,
-    LogOut,
-    Bell,
-    Plus
+    BarChart3, Building2, ChevronDown, ChevronLeft, ChevronRight, FlaskConical,
+    HelpCircle, LayoutDashboard, LogOut, MapPin, Menu, Search, Send, Settings,
+    Shield, ShieldCheck, Users, Wallet, X, Coins,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import CommandPalette from "@/components/layout/CommandPalette";
-import NotificationsCenter from "@/components/layout/NotificationsCenter";
 import NetworkHealthIndicator from "@/components/layout/NetworkHealthIndicator";
-import { ModeToggle } from "@/components/ui/mode-toggle";
+import NotificationsCenter from "@/components/layout/NotificationsCenter";
 import { ZapziveLogo } from "@/components/ui/ZapziveLogo";
 import { Button } from "@/components/ui/button";
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+    DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { PageHeaderProvider, usePageHeader } from "@/contexts/PageHeaderContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLogout } from "@/hooks/use-auth";
-import { PageHeaderProvider, usePageHeader } from "@/contexts/PageHeaderContext";
-import { Building, PlusCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const navigationGroups = [
+    {
+        title: "Workspace",
+        items: [
+            { icon: LayoutDashboard, href: "/dashboard", label: "Overview" },
+            { icon: BarChart3, href: "/dashboard/analytics", label: "Analytics" },
+        ],
+    },
+    {
+        title: "Money movement",
+        items: [
+            { icon: Users, href: "/dashboard/payroll", label: "Payroll" },
+            { icon: ShieldCheck, href: "/dashboard/escrow", label: "Escrow" },
+            { icon: Send, href: "/dashboard/remittance", label: "Remittance" },
+            { icon: Wallet, href: "/dashboard/treasury", label: "Treasury" },
+            { icon: Coins, href: "/dashboard/crypto", label: "Crypto payments" },
+        ],
+    },
+    {
+        title: "Controls",
+        items: [
+            { icon: Shield, href: "/dashboard/compliance", label: "Compliance" },
+            { icon: MapPin, href: "/dashboard/agents", label: "Agents" },
+        ],
+    },
+];
+
+const pageMeta = [
+    { match: "/dashboard/crypto", title: "Crypto payments", description: "Send USDC from your wallet and track settlement." },
+    { match: "/dashboard/payroll/batches", title: "Payroll batch", description: "Review recipients, approvals, and settlement progress." },
+    { match: "/dashboard/payroll/workers", title: "Worker profile", description: "Worker identity, payment details, and activity." },
+    { match: "/dashboard/escrow/", title: "Escrow contract", description: "Manage milestones, evidence, and fund releases." },
+    { match: "/dashboard/treasury/transfer", title: "Treasury transfer", description: "Move funds with a clear confirmation trail." },
+    { match: "/dashboard/analytics", title: "Analytics", description: "Track volume, performance, and operational trends." },
+    { match: "/dashboard/payroll", title: "Payroll", description: "Manage workers, batches, approvals, and payment history." },
+    { match: "/dashboard/escrow", title: "Escrow", description: "Protect funds with milestone-based release controls." },
+    { match: "/dashboard/remittance", title: "Remittance", description: "Send and monitor cross-border payouts." },
+    { match: "/dashboard/treasury", title: "Treasury", description: "Manage liquidity, balances, and settlement assets." },
+    { match: "/dashboard/compliance", title: "Compliance", description: "Review identity, risk, and transaction checks." },
+    { match: "/dashboard/agents", title: "Agents", description: "Monitor local payout coverage and agent operations." },
+    { match: "/dashboard/settings", title: "Settings", description: "Configure your organization, API access, and alerts." },
+    { match: "/dashboard", title: "Overview", description: "Your financial position and operations at a glance." },
+];
 
 function DashboardHeader() {
-    const location = useLocation();
-    const { title } = usePageHeader();
+    const { pathname } = useLocation();
+    const { title: contextualTitle } = usePageHeader();
+    const meta = useMemo(
+        () => pageMeta.find((item) => pathname === item.match || pathname.startsWith(item.match.endsWith("/") ? item.match : item.match + "/")) ?? pageMeta[pageMeta.length - 1],
+        [pathname],
+    );
 
     return (
-        <div className="hidden lg:flex flex-col">
-            <h1 className="text-xl font-bold text-foreground tracking-tight capitalize">
-                {title || location.pathname.split('/').pop()?.replace(/-/g, ' ') || 'Overview'}
-            </h1>
+        <div className="min-w-0">
+            <p className="dashboard-eyebrow hidden sm:block">Zapzive workspace</p>
+            <div className="flex min-w-0 items-baseline gap-3">
+                <h1 className="truncate text-[19px] font-semibold leading-tight tracking-[-0.035em] text-[#20211e] sm:text-[22px]">
+                    {contextualTitle || meta.title}
+                </h1>
+                <p className="hidden truncate text-sm text-[#77766e] xl:block">{meta.description}</p>
+            </div>
         </div>
     );
 }
 
-// Grouped Navigation Structure
-const navigationGroups = [
-    {
-        title: "Dashboard",
-        items: [
-            { icon: LayoutDashboard, href: "/dashboard", label: "Overview" },
-            { icon: BarChart3, href: "/dashboard/analytics", label: "Analytics" },
-        ]
-    },
-    {
-        title: "Operations",
-        items: [
-            { icon: Users, href: "/dashboard/payroll", label: "Payroll Engine" },
-            { icon: ShieldCheck, href: "/dashboard/escrow", label: "Escrow" },
-            { icon: Send, href: "/dashboard/remittance", label: "Remittance" },
-        ]
-    },
-    {
-        title: "Finance",
-        items: [
-            { icon: Wallet, href: "/dashboard/treasury", label: "Treasury" },
-        ]
-    },
-    {
-        title: "Compliance & Risk",
-        items: [
-            { icon: Shield, href: "/dashboard/compliance", label: "Compliance" },
-            { icon: MapPin, href: "/dashboard/agents", label: "Agents" },
-        ]
-    }
-];
+function SidebarNavigation({ collapsed = false, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
+    const { pathname } = useLocation();
+
+    return (
+        <nav className="space-y-7" aria-label="Dashboard navigation">
+            {navigationGroups.map((group) => (
+                <div key={group.title}>
+                    {!collapsed && <p className="mb-2 px-3 font-mono text-[9px] font-medium uppercase tracking-[0.16em] text-[#85857d]">{group.title}</p>}
+                    <div className="space-y-1">
+                        {group.items.map((item) => {
+                            const active = item.href === "/dashboard" ? pathname === item.href : pathname.startsWith(item.href);
+                            const content = (
+                                <Link
+                                    to={item.href}
+                                    onClick={onNavigate}
+                                    aria-current={active ? "page" : undefined}
+                                    className={cn(
+                                        "group relative flex h-10 items-center gap-3 rounded-xl px-3 text-[13px] font-medium transition-colors",
+                                        collapsed && "justify-center px-0",
+                                        active ? "text-[#f5f3ee]" : "text-[#aaa9a1] hover:bg-white/[0.06] hover:text-[#f5f3ee]",
+                                    )}
+                                >
+                                    {active && <span className="absolute left-0 h-5 w-[3px] rounded-r-full bg-[#11a879]" />}
+                                    <item.icon className={cn("h-[17px] w-[17px] shrink-0", active ? "text-[#087f5b]" : "text-[#85857d] group-hover:text-[#c9c8c0]")} strokeWidth={1.8} />
+                                    {!collapsed && <span>{item.label}</span>}
+                                </Link>
+                            );
+
+                            return collapsed ? (
+                                <Tooltip key={item.href}>
+                                    <TooltipTrigger asChild>{content}</TooltipTrigger>
+                                    <TooltipContent side="right" className="ml-2 border-[#2f5e50] bg-[#183a30] text-[#f5f3ee]">{item.label}</TooltipContent>
+                                </Tooltip>
+                            ) : <div key={item.href}>{content}</div>;
+                        })}
+                    </div>
+                </div>
+            ))}
+        </nav>
+    );
+}
 
 export default function DashboardLayout() {
     const { user, company } = useAuth();
     const logout = useLogout();
-    const location = useLocation();
     const navigate = useNavigate();
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-    const [showKycBanner, setShowKycBanner] = useState(true);
-
-    // Sidebar Collapsed State with Local Storage Persistence
-    const [isCollapsed, setIsCollapsed] = useState(() => {
-        const saved = localStorage.getItem("sidebarCollapsed");
-        return saved ? JSON.parse(saved) : false;
-    });
+    const [mobileOpen, setMobileOpen] = useState(false);
+    const [commandOpen, setCommandOpen] = useState(false);
+    const [showTestNotice, setShowTestNotice] = useState(true);
+    const [collapsed, setCollapsed] = useState(() => localStorage.getItem("sidebarCollapsed") === "true");
 
     useEffect(() => {
-        localStorage.setItem("sidebarCollapsed", JSON.stringify(isCollapsed));
-    }, [isCollapsed]);
+        document.body.classList.add("dashboard-active");
+        return () => document.body.classList.remove("dashboard-active");
+    }, []);
 
-    // Global keyboard shortcut for command palette
+    useEffect(() => localStorage.setItem("sidebarCollapsed", String(collapsed)), [collapsed]);
+
     useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-                e.preventDefault();
-                setIsCommandPaletteOpen(true);
+        const openSearch = (event: KeyboardEvent) => {
+            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+                event.preventDefault();
+                setCommandOpen(true);
             }
         };
-
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
+        window.addEventListener("keydown", openSearch);
+        return () => window.removeEventListener("keydown", openSearch);
     }, []);
+
+    const initials = user?.name?.substring(0, 2).toUpperCase() || "ZA";
+    const companyInitials = company?.name?.substring(0, 2).toUpperCase() || "ZA";
 
     return (
         <PageHeaderProvider>
-            <TooltipProvider delayDuration={0}>
-                <div className="min-h-screen bg-background text-foreground font-sans flex transition-colors duration-300">
-                    {/* Desktop Sidebar - Collapsible & Grouped */}
-                    <aside
-                        className={cn(
-                            "hidden lg:flex flex-col h-screen border-r border-[#262626] bg-[#0F0F0F] fixed top-0 left-0 z-50 transition-all duration-300 ease-in-out will-change-[width]",
-                            isCollapsed ? "w-20" : "w-72"
-                        )}
-                    >
-                        {/* Sidebar Header */}
-                        <div className={cn(
-                            "h-16 flex items-center border-b border-[#262626]",
-                            isCollapsed ? "justify-center px-0" : "px-6 justify-between"
-                        )}>
-                            {isCollapsed ? (
-                                <ZapziveLogo size="sm" className="[&_span]:hidden mr-0" />
-                            ) : (
-                                <ZapziveLogo size="sm" />
-                            )}
+            <TooltipProvider delayDuration={100}>
+                <div data-dashboard className="flex min-h-screen bg-[#f5f3ee] text-[#20211e]">
+                    <aside className={cn("fixed inset-y-0 left-0 z-50 hidden flex-col border-r border-[#2f5e50] bg-[#183a30] transition-[width] duration-200 lg:flex", collapsed ? "w-[84px]" : "w-[264px]")}>
+                        <div className={cn("flex h-[72px] items-center border-b border-[#2f5e50]", collapsed ? "justify-center px-3" : "px-6")}>
+                            <ZapziveLogo size={collapsed ? "xs" : "sm"} />
                         </div>
 
-                        {/* Sidebar Content */}
-                        <div className="flex-1 overflow-y-auto py-6 px-4 no-scrollbar">
-                            {/* Organization Switcher */}
-                            {!isCollapsed && (
+                        <div className="flex-1 overflow-y-auto px-4 py-5">
+                            {!collapsed && (
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm mb-8 rounded-lg border border-[#262626] bg-[#171717] hover:bg-[#262626] transition-all group outline-none">
-                                            <div className="w-8 h-8 rounded bg-[#262626] flex items-center justify-center text-zinc-400 font-bold text-xs">
-                                                {company?.name?.substring(0, 2).toUpperCase() || 'GP'}
-                                            </div>
-                                            <div className="flex-1 text-left overflow-hidden">
-                                                <span className="block text-sm font-semibold text-zinc-300 truncate">{company?.name || 'My Company'}</span>
-                                                <div className="flex items-center gap-1.5 mt-0.5">
-                                                    <div className={cn("w-1.5 h-1.5 rounded-full", company?.isTestMode ? "bg-zinc-500" : "bg-zinc-600")} />
-                                                    <span className="text-[10px] text-zinc-600 uppercase tracking-wider font-medium">
-                                                        {company?.isTestMode ? 'Test Mode' : 'Live Mode'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <ChevronDown className="w-4 h-4 text-zinc-600 transition-transform group-data-[state=open]:rotate-180" />
+                                        <button className="mb-7 flex w-full items-center gap-3 rounded-[12px] border border-[#2f5e50] bg-white/[0.035] p-2.5 text-left transition-colors hover:bg-white/[0.07]">
+                                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#3c6c5d] bg-[#20463a] text-xs font-semibold text-[#76d4b5]">{companyInitials}</span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate text-[13px] font-semibold text-[#f5f3ee]">{company?.name || "Zapzive Finance"}</span>
+                                                <span className="mt-0.5 flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.1em] text-[#92928a]"><span className="h-1.5 w-1.5 rounded-full bg-[#11a879]" />{company?.isTestMode ? "Test workspace" : "Live workspace"}</span>
+                                            </span>
+                                            <ChevronDown className="h-4 w-4 text-[#85857d]" />
                                         </button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start" className="w-64 bg-[#171717] border-[#262626] shadow-xl rounded-xl p-2">
-                                        <DropdownMenuLabel className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest px-2 py-1.5">
-                                            Switch Organization
-                                        </DropdownMenuLabel>
-                                        <DropdownMenuItem className="flex items-center gap-3 p-2 rounded-lg cursor-pointer bg-[#262626] text-white font-medium">
-                                            <div className="w-6 h-6 rounded bg-[#333] flex items-center justify-center text-[10px] font-bold">
-                                                {company?.name?.substring(0, 2).toUpperCase() || 'GP'}
-                                            </div>
-                                            <span className="flex-1 truncate">{company?.name || 'My Company'}</span>
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator className="my-2 bg-[#262626]" />
-                                        <DropdownMenuItem className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-[#262626] text-zinc-400 hover:text-white transition-colors group">
-                                            <PlusCircle className="w-4 h-4" />
-                                            <span className="font-medium text-sm">Add Organization</span>
-                                        </DropdownMenuItem>
+                                    <DropdownMenuContent align="start" className="w-60 rounded-xl border-[#d9d6cd] bg-[#fffdf8] p-2 shadow-xl">
+                                        <DropdownMenuLabel className="font-mono text-[9px] uppercase tracking-[.14em] text-[#77766e]">Organization</DropdownMenuLabel>
+                                        <DropdownMenuItem className="gap-3 rounded-lg bg-[#e8eee4] text-[#20211e]"><Building2 className="h-4 w-4 text-[#087f5b]" /><span className="truncate">{company?.name || "Zapzive Finance"}</span></DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem className="gap-3 rounded-lg text-[#575750]"><HelpCircle className="h-4 w-4" /> Contact support</DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             )}
-
-
-                            {/* Navigation Groups */}
-                            <div className="space-y-8">
-                                {navigationGroups.map((group, groupIndex) => (
-                                    <div key={groupIndex}>
-                                        {!isCollapsed && (
-                                            <h4 className="px-3 mb-3 text-[11px] font-semibold text-zinc-600 uppercase tracking-widest">
-                                                {group.title}
-                                            </h4>
-                                        )}
-                                        <div className="space-y-0.5">
-                                            {group.items.map((item) => {
-                                                const isActive = location.pathname === item.href;
-                                                return (
-                                                    <Tooltip key={item.href}>
-                                                        <TooltipTrigger asChild>
-                                                            <Link
-                                                                to={item.href}
-                                                                className={cn(
-                                                                    "flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-all duration-200 group relative",
-                                                                    isActive
-                                                                        ? "text-zinc-100 bg-[#171717]"
-                                                                        : "text-zinc-500 hover:text-zinc-300 hover:bg-[#171717]/50",
-                                                                    isCollapsed && "justify-center px-0 py-3"
-                                                                )}
-                                                            >
-                                                                {isActive && !isCollapsed && (
-                                                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#50949d] rounded-r-full" />
-                                                                )}
-
-                                                                <item.icon className={cn(
-                                                                    "transition-colors",
-                                                                    isCollapsed ? "w-5 h-5" : "w-4 h-4",
-                                                                    isActive ? "text-zinc-100" : "text-zinc-500 group-hover:text-zinc-300"
-                                                                )} />
-                                                                {!isCollapsed && <span>{item.label}</span>}
-                                                            </Link>
-                                                        </TooltipTrigger>
-                                                        {isCollapsed && (
-                                                            <TooltipContent side="right" className="font-medium bg-[#171717] text-zinc-200 border-[#262626] px-3 py-1.5 min-w-[120px] shadow-xl ml-2">
-                                                                {item.label}
-                                                            </TooltipContent>
-                                                        )}
-                                                    </Tooltip>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                            <SidebarNavigation collapsed={collapsed} />
                         </div>
 
-                        {/* Sidebar Footer */}
-                        <div className="p-4 border-t border-zinc-800">
-                            <div className="space-y-1 mb-4">
-                                <Link
-                                    to="/dashboard/settings"
-                                    className={cn(
-                                        "flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] font-medium transition-colors text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50",
-                                        isCollapsed && "justify-center"
-                                    )}
-                                >
-                                    <Settings className={cn(isCollapsed ? "w-5 h-5" : "w-4 h-4")} />
-                                    {!isCollapsed && "Settings"}
-                                </Link>
-                                <button
-                                    onClick={logout}
-                                    className={cn(
-                                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] font-medium transition-colors text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50",
-                                        isCollapsed && "justify-center"
-                                    )}
-                                >
-                                    <LogOut className={cn(isCollapsed ? "w-5 h-5" : "w-4 h-4")} />
-                                    {!isCollapsed && "Logout"}
-                                </button>
+                        <div className="border-t border-[#2f5e50] p-4">
+                            <Link to="/dashboard/settings" className={cn("mb-3 flex h-10 items-center gap-3 rounded-xl px-3 text-[13px] font-medium text-[#aaa9a1] transition-colors hover:bg-white/[0.06] hover:text-[#f5f3ee]", collapsed && "justify-center px-0")}><Settings className="h-[17px] w-[17px]" />{!collapsed && "Settings"}</Link>
+                            <div className={cn("flex items-center gap-3 border-t border-[#2f5e50] pt-4", collapsed && "flex-col")}>
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#3c6c5d] bg-[#20463a] text-[11px] font-semibold text-[#f5f3ee]">{initials}</span>
+                                {!collapsed && <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-[#f5f3ee]">{user?.name || "Workspace admin"}</span><span className="block truncate text-[10px] text-[#85857d]">{user?.email || "admin@zapzive.com"}</span></span>}
+                                {!collapsed && <button onClick={logout} aria-label="Log out" className="rounded-lg p-2 text-[#85857d] hover:bg-white/[0.06] hover:text-[#f5f3ee]"><LogOut className="h-4 w-4" /></button>}
                             </div>
-
-                            {/* Collapse Toggle */}
-                            <div className="flex items-center justify-between pt-4 border-t border-zinc-800">
-                                {!isCollapsed && (
-                                    <div className="flex items-center gap-3 px-2">
-                                        <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-semibold text-zinc-400">
-                                            {user?.name?.substring(0, 2).toUpperCase() || 'US'}
-                                        </div>
-                                        <div className="text-xs">
-                                            <div className="font-semibold text-zinc-300 truncate max-w-[100px]">{user?.name || 'User'}</div>
-                                            <div className="text-zinc-600 text-[10px]">Admin</div>
-                                        </div>
-                                    </div>
-                                )}
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setIsCollapsed(!isCollapsed)}
-                                    className={cn("h-8 w-8 text-zinc-600 hover:text-zinc-400 hover:bg-zinc-900/50", isCollapsed && "w-full")}
-                                >
-                                    {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-                                </Button>
-                            </div>
+                            <button onClick={() => setCollapsed((value) => !value)} className="mt-3 flex h-8 w-full items-center justify-center rounded-lg text-[#85857d] hover:bg-white/[0.06] hover:text-[#f5f3ee]" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>{collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}</button>
                         </div>
                     </aside>
 
-                    {/* Main Content Wrapper */}
-                    <div className={cn(
-                        "flex-1 flex flex-col min-h-screen transition-all duration-300 ease-in-out relative",
-                        isCollapsed ? "lg:ml-20" : "lg:ml-72"
-                    )}>
-                        {/* Header - Webpage Style */}
-                        <header className="h-16 border-b border-border bg-card sticky top-0 z-40 px-6 sm:px-8 flex items-center justify-between">
-                            <div className="flex items-center gap-4 lg:hidden">
-                                <button onClick={() => setIsMobileMenuOpen(true)} className="text-muted-foreground hover:text-foreground transition-colors">
-                                    <Menu className="w-5 h-5" />
-                                </button>
-                                <ZapziveLogo size="sm" />
+                    <div className={cn("flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-200", collapsed ? "lg:ml-[84px]" : "lg:ml-[264px]")}>
+                        <header className="sticky top-0 z-40 flex h-[72px] items-center justify-between gap-4 border-b border-[#d9d6cd] bg-[#f5f3ee]/95 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
+                            <div className="flex min-w-0 items-center gap-3">
+                                <button onClick={() => setMobileOpen(true)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-[#d9d6cd] bg-[#fffdf8] text-[#575750] lg:hidden" aria-label="Open navigation"><Menu className="h-4 w-4" /></button>
+                                <DashboardHeader />
                             </div>
-
-                            {/* Header Title */}
-                            <DashboardHeader />
-
-                            {/* Header Actions */}
-                            <div className="flex items-center gap-4">
-                                {company?.isTestMode && (
-                                    <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
-                                        <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                                        <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider">Test Mode</span>
-                                    </div>
-                                )}
-                                <NetworkHealthIndicator />
-                                <div className="h-6 w-px bg-border/50 hidden sm:block" />
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => setIsCommandPaletteOpen(true)}
-                                        className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary/80 text-muted-foreground hover:text-foreground transition-all border border-border/50 hover:border-border text-xs font-semibold shadow-sm"
-                                    >
-                                        <Search className="w-3.5 h-3.5 text-primary" />
-                                        <span>Search...</span>
-                                        <kbd className="hidden md:inline-flex h-4 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                                            <span className="text-xs">⌘</span>K
-                                        </kbd>
-                                    </button>
-                                    <NotificationsCenter />
-                                    <ModeToggle />
-                                </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                                <button onClick={() => setCommandOpen(true)} className="hidden h-9 items-center gap-2 rounded-[10px] border border-[#d9d6cd] bg-[#fffdf8] px-3 text-xs text-[#77766e] transition-colors hover:border-[#b9d9cc] hover:text-[#20211e] sm:flex"><Search className="h-3.5 w-3.5 text-[#087f5b]" /><span className="hidden md:inline">Search</span><kbd className="rounded border border-[#d9d6cd] bg-[#f5f3ee] px-1.5 py-0.5 font-mono text-[9px]">Ctrl K</kbd></button>
+                                <span className="hidden sm:block"><NetworkHealthIndicator /></span>
+                                <NotificationsCenter />
+                                <span className="mx-1 hidden h-6 w-px bg-[#d9d6cd] sm:block" />
+                                <button onClick={() => navigate("/dashboard/settings")} className="flex h-9 w-9 items-center justify-center rounded-full bg-[#183a30] text-[10px] font-semibold text-[#f5f3ee]" aria-label="Open account settings">{initials}</button>
                             </div>
                         </header>
 
-                        <main className="flex-1 p-6 sm:p-8 overflow-y-auto bg-background/50">
-                            {/* Profile Completion Warning */}
-                            {showKycBanner && company?.isTestMode && (
-                                <div className="max-w-[1600px] mx-auto w-full mb-6">
-                                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 flex items-center justify-between gap-4 backdrop-blur-sm">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-amber-500/10 rounded-full">
-                                                <Zap className="w-5 h-5 text-amber-500" />
-                                            </div>
-                                            <div>
-                                                <h4 className="text-sm font-bold text-amber-600">You are in Test Mode</h4>
-                                                <p className="text-xs text-muted-foreground/80 font-medium leading-relaxed">Access all features with test data. Switch to live to start processing real payments.</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-muted-foreground hover:text-foreground h-8"
-                                                onClick={() => setShowKycBanner(false)}
-                                            >
-                                                Hide
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                className="bg-amber-500 hover:bg-amber-400 text-black font-medium h-8"
-                                                onClick={() => navigate('/dashboard/settings')}
-                                            >
-                                                Switch to Live
-                                            </Button>
-                                        </div>
-                                    </div>
+                        <main className="min-w-0 flex-1 bg-[#f5f3ee] px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
+                            {showTestNotice && company?.isTestMode && (
+                                <div className="dashboard-test-notice mx-auto mb-6 flex max-w-[1440px] flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                                    <div className="flex items-start gap-3"><span className="dashboard-icon h-9 w-9"><FlaskConical className="h-4 w-4" /></span><div><p className="text-sm font-semibold text-[#20211e]">Test workspace</p><p className="mt-0.5 text-xs leading-5 text-[#575750]">Explore every workflow with sample data. No real funds will move.</p></div></div>
+                                    <div className="flex items-center gap-2 pl-12 sm:pl-0"><Button variant="ghost" size="sm" onClick={() => setShowTestNotice(false)}>Dismiss</Button><Button size="sm" onClick={() => navigate("/dashboard/settings")}>Review live setup</Button></div>
                                 </div>
                             )}
-
-                            <div className="max-w-[1600px] mx-auto w-full animate-fade-in relative">
-                                <Outlet />
-                            </div>
+                            <div data-dashboard-content className="mx-auto w-full max-w-[1440px] min-w-0 animate-fade-in"><Outlet /></div>
                         </main>
                     </div>
 
-                    {/* Mobile Sidebar Overlay */}
+                    <AnimatePresence>{mobileOpen && <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobileOpen(false)} className="fixed inset-0 z-[60] bg-[#20211e]/55 backdrop-blur-sm lg:hidden" aria-label="Close navigation" />}</AnimatePresence>
                     <AnimatePresence>
-                        {isMobileMenuOpen && (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className="fixed inset-0 bg-black/80 z-[60] lg:hidden backdrop-blur-sm"
-                            />
-                        )}
-                    </AnimatePresence>
-
-                    {/* Mobile Sidebar */}
-                    <AnimatePresence>
-                        {isMobileMenuOpen && (
-                            <motion.aside
-                                initial={{ x: "-100%" }}
-                                animate={{ x: 0 }}
-                                exit={{ x: "-100%" }}
-                                transition={{ type: "tween", duration: 0.2 }}
-                                className="fixed inset-y-0 left-0 w-72 bg-background border-r border-border z-[70] lg:hidden flex flex-col shadow-2xl"
-                            >
-                                <div className="p-6 flex justify-between items-center border-b border-border">
-                                    <ZapziveLogo size="sm" />
-                                    <button onClick={() => setIsMobileMenuOpen(false)}>
-                                        <X className="w-5 h-5 text-muted-foreground" />
-                                    </button>
-                                </div>
-                                <nav className="flex-1 overflow-y-auto p-4 space-y-6">
-                                    {navigationGroups.map((group, i) => (
-                                        <div key={i}>
-                                            <h4 className="px-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.title}</h4>
-                                            <div className="space-y-1">
-                                                {group.items.map((item) => (
-                                                    <Link
-                                                        key={item.href}
-                                                        to={item.href}
-                                                        onClick={() => setIsMobileMenuOpen(false)}
-                                                        className={cn(
-                                                            "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
-                                                            location.pathname === item.href
-                                                                ? "bg-primary/10 text-primary"
-                                                                : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                                                        )}
-                                                    >
-                                                        <item.icon className="w-4 h-4" />
-                                                        {item.label}
-                                                    </Link>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </nav>
-                                <div className="p-4 border-t border-border bg-muted/30">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-blue-500 flex items-center justify-center text-white font-bold text-sm">
-                                            {user?.name?.substring(0, 2).toUpperCase() || 'US'}
-                                        </div>
-                                        <div>
-                                            <div className="font-semibold text-sm text-foreground">{user?.name || 'User'}</div>
-                                            <div className="text-xs text-muted-foreground">{user?.email || 'admin@kash.io'}</div>
-                                        </div>
-                                    </div>
-                                </div>
+                        {mobileOpen && (
+                            <motion.aside initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} transition={{ duration: 0.2 }} className="fixed inset-y-0 left-0 z-[70] flex w-[286px] flex-col border-r border-[#2f5e50] bg-[#183a30] lg:hidden">
+                                <div className="flex h-[72px] items-center justify-between border-b border-[#2f5e50] px-5"><ZapziveLogo size="sm" /><button onClick={() => setMobileOpen(false)} className="rounded-lg p-2 text-[#aaa9a1]" aria-label="Close navigation"><X className="h-4 w-4" /></button></div>
+                                <div className="flex-1 overflow-y-auto p-4 pt-6"><SidebarNavigation onNavigate={() => setMobileOpen(false)} /></div>
+                                <div className="border-t border-[#2f5e50] p-4"><button onClick={logout} className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm text-[#aaa9a1]"><LogOut className="h-4 w-4" /> Log out</button></div>
                             </motion.aside>
                         )}
                     </AnimatePresence>
-
-                    {/* Command Palette */}
-                    <CommandPalette
-                        isOpen={isCommandPaletteOpen}
-                        onClose={() => setIsCommandPaletteOpen(false)}
-                    />
+                    <CommandPalette isOpen={commandOpen} onClose={() => setCommandOpen(false)} />
                 </div>
             </TooltipProvider>
         </PageHeaderProvider>
     );
 }
-

@@ -53,7 +53,7 @@ export function TestimonialsSection() {
               initial={{ opacity: 0, y: 30 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
-              className="bg-[#0F0F10] p-8 rounded-3xl border border-white/10 shadow-2xl"
+              className="bg-[#fffdf8] p-8 rounded-2xl border border-[#d9d6cd] shadow-[0_8px_24px_rgba(32,33,30,.06)]"
             >
               <p className="text-foreground text-lg leading-relaxed mb-8">
                 "{testimonial.quote}"

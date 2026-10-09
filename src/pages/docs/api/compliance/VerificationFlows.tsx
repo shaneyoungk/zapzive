@@ -10,15 +10,15 @@ export default function VerificationFlows() {
             {/* Hero Section */}
             <div className="space-y-4">
                 <div className="flex items-center gap-3 mb-2">
-                    <Badge variant="outline" className="bg-emerald-500/5 text-emerald-400 border-emerald-400/20 px-3 py-1">
+                    <Badge variant="outline" className="bg-emerald-500/5 text-[#087f5b] border-emerald-400/20 px-3 py-1">
                         Hosted UI
                     </Badge>
                     <div className="h-px flex-1 bg-gradient-to-r from-emerald-500/20 to-transparent" />
                 </div>
-                <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-                    Verification <span className="text-emerald-400">Flows</span>
+                <h1 className="text-4xl font-bold tracking-tight text-[#20211e] sm:text-5xl">
+                    Verification <span className="text-[#087f5b]">Flows</span>
                 </h1>
-                <p className="text-lg text-zinc-400 leading-relaxed max-w-2xl">
+                <p className="text-lg text-[#575750] leading-relaxed max-w-2xl">
                     Embed high-conversion KYC sessions directly in your app. We handle the heavy lifting of image capture and data extraction.
                 </p>
             </div>
@@ -28,21 +28,21 @@ export default function VerificationFlows() {
             </DocCallout>
 
             {/* --- ENDPOINT: CREATE SESSION --- */}
-            <section className="space-y-6 pt-12 border-t border-white/5">
+            <section className="space-y-6 pt-12 border-t border-[#d9d6cd]">
                 <div className="flex items-center gap-3 mb-4">
-                    <Badge className="bg-emerald-500/10 text-emerald-400 py-1 px-3 border border-emerald-500/20 font-mono text-[10px]">POST</Badge>
-                    <code className="text-lg font-mono text-white">/v1/compliance/sessions</code>
+                    <Badge className="bg-emerald-500/10 text-[#087f5b] py-1 px-3 border border-emerald-500/20 font-mono text-[10px]">POST</Badge>
+                    <code className="text-lg font-mono text-[#20211e]">/api/compliance/sessions</code>
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
                     <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-white">Create Session</h2>
-                        <p className="text-zinc-400 text-sm">
+                        <h2 className="text-2xl font-bold text-[#20211e]">Create Session</h2>
+                        <p className="text-[#575750] text-sm">
                             Initiate a new hosted verification session and receive a temporary URL.
                         </p>
 
                         <div className="space-y-4">
-                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Response Codes</h3>
+                            <h3 className="text-xs font-bold text-[#77766e] uppercase tracking-widest">Response Codes</h3>
                             <div className="space-y-2">
                                 <ResponseCode code="201 Created" desc="Session URL generated." color="emerald" />
                                 <ResponseCode code="400 Bad Request" desc="Invalid region or config." color="zinc" />
@@ -53,7 +53,7 @@ export default function VerificationFlows() {
                     <div className="space-y-4">
                         <CodeWindow
                             title="create-session.bash"
-                            code={`curl https://api.zapzive.com/v1/compliance/sessions \\
+                            code={`curl https://your-api.example.com/api/compliance/sessions \\
   -d redirect_url="https://your-app.com/done" \\
   -d worker_id="wkr_123"`}
                         />
@@ -62,8 +62,8 @@ export default function VerificationFlows() {
             </section>
 
             {/* SDK Recap */}
-            <div className="bg-zinc-900/40 border border-white/5 p-8 rounded-3xl space-y-6">
-                <h3 className="text-xl font-bold text-white">Frontend SDK Integration</h3>
+            <div className="bg-[#f5f3ee]/40 border border-[#d9d6cd] p-8 rounded-3xl space-y-6">
+                <h3 className="text-xl font-bold text-[#20211e]">Frontend SDK Integration</h3>
                 <CodeWindow
                     language="typescript"
                     title="verify.tsx"
@@ -86,10 +86,10 @@ const startVerification = () => {
                     { title: "Direct Link", desc: "User completes flow on our domain.", icon: Play },
                     { title: "Webhook", desc: "Receive final status payload.", icon: ArrowRight }
                 ].map((item, i) => (
-                    <div key={i} className="p-6 rounded-3xl bg-zinc-900/50 border border-white/5 space-y-3">
-                        <item.icon className="w-5 h-5 text-emerald-400" />
-                        <h4 className="font-bold text-white text-sm">{item.title}</h4>
-                        <p className="text-xs text-zinc-500 leading-relaxed">{item.desc}</p>
+                    <div key={i} className="p-6 rounded-3xl bg-[#f5f3ee]/50 border border-[#d9d6cd] space-y-3">
+                        <item.icon className="w-5 h-5 text-[#087f5b]" />
+                        <h4 className="font-bold text-[#20211e] text-sm">{item.title}</h4>
+                        <p className="text-xs text-[#77766e] leading-relaxed">{item.desc}</p>
                     </div>
                 ))}
             </div>
@@ -99,10 +99,10 @@ const startVerification = () => {
 
 function ResponseCode({ code, desc, color }: { code: string; desc: string; color: "emerald" | "blue" | "red" | "zinc" }) {
     const colorClasses = {
-        emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-        blue: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-        red: "bg-red-500/10 text-red-400 border-red-500/20",
-        zinc: "bg-white/5 text-zinc-400 border-white/10"
+        emerald: "bg-emerald-500/10 text-[#087f5b] border-emerald-500/20",
+        blue: "bg-blue-500/10 text-[#087f5b] border-blue-500/20",
+        red: "bg-red-500/10 text-[#9b463c] border-red-500/20",
+        zinc: "bg-[#f5f3ee] text-[#575750] border-[#cdd8c8]"
     };
 
     return (

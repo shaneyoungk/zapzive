@@ -96,56 +96,21 @@ export default function Remittance() {
 
     return (
         <div className="p-4 lg:p-6 max-w-[1600px] mx-auto space-y-6 animate-fade-in">
-            {/* Header */}
-            <div className="flex items-center justify-end">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                <div><p className="dashboard-eyebrow">Cross-border payouts</p><h1 className="mt-2 text-3xl">Remittance</h1><p className="mt-2 text-sm text-[#77766e]">Track recipient delivery, local currency value, and fees.</p></div>
                 <Button
-                    className="h-8 px-4 text-[10px] font-bold bg-white text-black hover:bg-zinc-200"
                     onClick={() => setIsSendMoneyOpen(true)}
                 >
-                    <Plus className="w-3 h-3 mr-2" />
-                    Send Money
+                    <Plus className="h-4 w-4" />
+                    Send money
                 </Button>
             </div>
 
-            {/* Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Total Sent</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 font-mono tabular-nums">
-                        ${(totalSent || 0).toLocaleString()}
-                    </h3>
-                    <p className="text-xs text-zinc-500">{allRemittances.length} transactions</p>
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Pending</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 tabular-nums">{pendingCount}</h3>
-                    <p className="text-xs text-amber-400 font-medium">In progress</p>
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Completed</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 tabular-nums">{completedCount}</h3>
-                    <p className="text-xs text-emerald-400 font-medium">This month</p>
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Total Fees</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 font-mono tabular-nums">
-                        ${totalFees.toFixed(2)}
-                    </h3>
-                    <p className="text-xs text-zinc-500">
-                        {((totalFees / totalSent) * 100).toFixed(2)}% avg
-                    </p>
-                </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <MetricCard title="Total sent" value={`$${(totalSent || 0).toLocaleString()}`} icon={Send} subtitle={`${allRemittances.length} transactions`} />
+                <MetricCard title="In progress" value={pendingCount} icon={Clock} subtitle="Awaiting delivery" />
+                <MetricCard title="Completed" value={completedCount} icon={CheckCircle2} subtitle="This month" />
+                <MetricCard title="Total fees" value={`$${totalFees.toFixed(2)}`} icon={DollarSign} subtitle={totalSent ? `${((totalFees / totalSent) * 100).toFixed(2)}% average` : "No fees recorded"} />
             </div>
 
             {/* Filters */}

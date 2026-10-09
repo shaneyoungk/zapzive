@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { AreaChart, Area, ResponsiveContainer, XAxis, Tooltip, CartesianGrid } from 'recharts';
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Activity, BarChart2, CandlestickChart } from "lucide-react";
 
@@ -26,26 +25,27 @@ export function IndicatorsChart() {
     const data = activeTab === 'Daily' ? dailyData : activeTab === 'Monthly' ? monthlyData : yearlyData;
 
     return (
-        <div className="p-6 rounded-[2rem] bg-[#121212] border border-white/5 relative overflow-hidden h-full flex flex-col">
+        <div className="premium-card p-6 relative overflow-hidden h-full flex flex-col">
             <div className="flex justify-between items-start mb-6 relative z-10">
                 <div>
-                    <h3 className="text-xl font-bold text-white mb-1">Indicators</h3>
-                    <p className="text-zinc-500 text-xs">Growth Earning +5.7% from Last Month</p>
+                    <p className="dashboard-eyebrow">Performance</p>
+                    <h3 className="mt-2 text-xl font-semibold text-[#20211e]">Balance trend</h3>
+                    <p className="mt-1 text-xs text-[#77766e]">Up 5.7% from last month</p>
                 </div>
-                <div className="w-10 h-10 rounded-full border border-white/5 flex items-center justify-center">
-                    <Activity className="w-4 h-4 text-zinc-500" />
+                <div className="dashboard-icon h-10 w-10">
+                    <Activity className="h-4 w-4" />
                 </div>
             </div>
 
             <div className="flex justify-between items-center mb-4 relative z-10">
-                <div className="flex bg-[#0A0A0A] rounded-lg p-1 border border-white/5">
+                <div className="flex rounded-full border border-[#d9d6cd] bg-[#f5f3ee] p-1">
                     {(['Daily', 'Monthly', 'Yearly'] as const).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={cn(
-                                "px-3 py-1 text-xs font-medium rounded-md transition-all",
-                                activeTab === tab ? "bg-emerald-500/10 text-emerald-500" : "text-zinc-500 hover:text-white"
+                                "rounded-full px-3 py-1 text-xs font-medium transition-all",
+                                activeTab === tab ? "bg-[#20211e] text-[#f5f3ee]" : "text-[#77766e] hover:text-[#20211e]"
                             )}
                         >
                             {tab}
@@ -53,9 +53,9 @@ export function IndicatorsChart() {
                     ))}
                 </div>
 
-                <div className="flex gap-2 text-zinc-500">
-                    <BarChart2 className="w-4 h-4 cursor-pointer hover:text-white" />
-                    <CandlestickChart className="w-4 h-4 cursor-pointer hover:text-white" />
+                <div className="flex gap-2 text-[#77766e]">
+                    <BarChart2 className="h-4 w-4 cursor-pointer hover:text-[#087f5b]" />
+                    <CandlestickChart className="h-4 w-4 cursor-pointer hover:text-[#087f5b]" />
                 </div>
             </div>
 
@@ -68,17 +68,17 @@ export function IndicatorsChart() {
                                 <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid vertical={false} stroke="#ffffff05" />
+                        <CartesianGrid vertical={false} stroke="#dedbd2" />
                         <XAxis
                             dataKey="name"
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: '#52525b', fontSize: 10 }}
+                            tick={{ fill: '#77766e', fontSize: 10 }}
                             dy={10}
                         />
                         <Tooltip
-                            contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '12px', color: '#fff' }}
-                            itemStyle={{ color: '#10b981' }}
+                            contentStyle={{ backgroundColor: '#fffdf8', border: '1px solid #d9d6cd', borderRadius: '12px', color: '#20211e' }}
+                            itemStyle={{ color: '#087f5b' }}
                         />
                         <Area
                             type="monotone"
@@ -92,8 +92,6 @@ export function IndicatorsChart() {
                 </ResponsiveContainer>
             </div>
 
-            {/* Background Glow */}
-            <div className="absolute bottom-0 left-0 right-0 h-32 bg-emerald-500/5 blur-[60px] rounded-full pointer-events-none" />
         </div>
     );
 }

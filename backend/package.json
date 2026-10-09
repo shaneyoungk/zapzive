@@ -1,12 +1,16 @@
 {
-    "name": "globalpay-backend",
+    "name": "zapzive-backend",
     "version": "1.0.0",
-    "description": "Backend API for GlobalPay application",
+    "description": "Backend API for the Zapzive application",
     "main": "dist/server.js",
     "scripts": {
         "dev": "nodemon --watch src --ext ts --exec tsx src/server.ts",
-        "build": "tsc",
+        "build": "prisma generate && tsc",
+        "build:vercel": "prisma generate && prisma db push --skip-generate && tsc",
         "start": "node dist/server.js",
+        "crypto:worker": "tsx src/crypto/run-worker.ts",
+        "crypto:reconcile": "tsx src/crypto/run-worker.ts --once",
+        "test:crypto": "tsx --test tests/crypto.test.ts",
         "prisma:generate": "prisma generate",
         "prisma:migrate": "prisma migrate dev",
         "prisma:seed": "tsx prisma/seed.ts",
@@ -16,7 +20,7 @@
         "seed": "tsx prisma/seed.ts"
     },
     "keywords": [
-        "globalpay",
+        "zapzive",
         "api",
         "backend"
     ],
@@ -32,7 +36,8 @@
         "express": "^4.21.2",
         "express-validator": "^7.2.1",
         "jsonwebtoken": "^9.0.2",
-        "morgan": "^1.10.0"
+        "morgan": "^1.10.0",
+        "viem": "2.56.5"
     },
     "devDependencies": {
         "@types/cors": "^2.8.17",

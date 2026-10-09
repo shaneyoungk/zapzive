@@ -23,7 +23,7 @@ import {
     AlertCircle,
     ExternalLink
 } from "lucide-react";
-import axios from "axios";
+import apiClient from "@/lib/api-client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -55,13 +55,8 @@ export default function ContractDetail() {
 
     const fetchContract = async () => {
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-            const response = await axios.get(`${apiUrl}/api/escrow/contracts/${id}`, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem('auth_token')}`
-                }
-            });
-            setContract(response.data);
+            if (!id) return;
+            setContract(await apiClient.getContract(id));
         } catch (error) {
             console.error("Error fetching contract:", error);
             toast.error("Failed to load contract details");
@@ -84,12 +79,8 @@ export default function ContractDetail() {
     const handleAcceptBid = async (bidId: string) => {
         setActionLoading(bidId);
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-            await axios.put(`${apiUrl}/api/escrow/contracts/${id}/bids/${bidId}/accept`, {}, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem('auth_token')}`
-                }
-            });
+            if (!id) return;
+            await apiClient.acceptContractBid(id, bidId);
             toast.success("Bid accepted successfully!");
             fetchContract(); // Refresh data
         } catch (error) {
@@ -103,51 +94,13 @@ export default function ContractDetail() {
     const handleRejectBid = async (bidId: string) => {
         setActionLoading(bidId);
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-            await axios.put(`${apiUrl}/api/escrow/contracts/${id}/bids/${bidId}/reject`, {}, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem('auth_token')}`
-                }
-            });
+            if (!id) return;
+            await apiClient.rejectContractBid(id, bidId);
             toast.success("Bid rejected");
             fetchContract(); // Refresh data
         } catch (error) {
             console.error("Error rejecting bid:", error);
             toast.error("Failed to reject bid");
-        } finally {
-            setActionLoading(null);
-        }
-    };
-
-    const handleReleaseFunds = async (specificAmount?: number) => {
-        let amount: number;
-
-        if (specificAmount !== undefined) {
-            amount = specificAmount;
-        } else {
-            const amountStr = prompt("Enter amount to release:", contract.lockedAmount.toString());
-            if (!amountStr) return;
-            amount = parseFloat(amountStr);
-        }
-
-        if (isNaN(amount) || amount <= 0 || amount > contract.lockedAmount) {
-            toast.error("Invalid amount");
-            return;
-        }
-
-        setActionLoading('release');
-        try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-            await axios.put(`${apiUrl}/api/escrow/contracts/${id}/release`, { amount }, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem('auth_token')}`
-                }
-            });
-            toast.success("Funds released successfully!");
-            fetchContract(); // Refresh data
-        } catch (error) {
-            console.error("Error releasing funds:", error);
-            toast.error("Failed to release funds");
         } finally {
             setActionLoading(null);
         }
@@ -546,10 +499,8 @@ export default function ContractDetail() {
                                                                         const confirmed = window.confirm(`Review and approve milestone: ${milestone.title}?`);
                                                                         if (confirmed) {
                                                                             try {
-                                                                                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-                                                                                await axios.put(`${apiUrl}/api/escrow/contracts/${id}/milestones/${milestone.id}`, { status: 'approved' }, {
-                                                                                    headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` }
-                                                                                });
+                                                                                if (!id) return;
+                                                                                await apiClient.updateContractMilestone(id, milestone.id, { status: 'completed' });
                                                                                 toast.success("Milestone approved!");
                                                                                 fetchContract();
                                                                             } catch (e) {
@@ -702,14 +653,12 @@ export default function ContractDetail() {
                                         onClick={async () => {
                                             setActionLoading('release');
                                             try {
-                                                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
                                                 // Release all approved milestones
                                                 for (const milestone of approvedMilestones) {
-                                                    await axios.post(`${apiUrl}/api/escrow/contracts/${id}/release`, {
+                                                    if (!id) return;
+                                                    await apiClient.releaseFunds(id, {
                                                         milestoneId: milestone.id,
                                                         amount: milestone.amount
-                                                    }, {
-                                                        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` }
                                                     });
                                                 }
                                                 toast.success(`Successfully released $${approvedTotal.toLocaleString()}`);
@@ -741,7 +690,7 @@ export default function ContractDetail() {
                                 </div>
                                 <div className="flex items-center gap-2 text-xs text-zinc-500">
                                     <Clock className="w-3.5 h-3.5" />
-                                    <span>Instant settlement via {contract.chain} Network</span>
+                            <span>Sandbox settlement record · {contract.chain} network context</span>
                                 </div>
                             </div>
 
@@ -758,12 +707,10 @@ export default function ContractDetail() {
                                     onClick={async () => {
                                         setActionLoading('release');
                                         try {
-                                            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-                                            await axios.post(`${apiUrl}/api/escrow/contracts/${id}/release`, {
+                                            if (!id) return;
+                                            await apiClient.releaseFunds(id, {
                                                 milestoneId: selectedMilestone.id,
                                                 amount: selectedMilestone.amount
-                                            }, {
-                                                headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` }
                                             });
                                             toast.success("Funds released successfully!");
                                             fetchContract();

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Building2,
     Users,
@@ -9,8 +9,6 @@ import {
     Save,
     Plus,
     Trash2,
-    Eye,
-    EyeOff,
     Zap,
     Activity,
     Globe,
@@ -51,8 +49,10 @@ interface ApiKey {
     id: string;
     name: string;
     key: string;
+    environment?: string;
     createdAt: string;
     lastUsed?: string;
+    scopes?: string[];
 }
 
 interface WebhookEndpoint {
@@ -72,12 +72,13 @@ interface Metric {
 type SettingsTab = "organization" | "api" | "webhooks" | "usage" | "users" | "notifications";
 
 export default function Settings() {
-    const { company } = useAuth();
+    const { company, updateCompany } = useAuth();
     const [activeTab, setActiveTab] = useState<SettingsTab>("organization");
-    const [showApiKey, setShowApiKey] = useState<string | null>(null);
     const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
     const [newKeyName, setNewKeyName] = useState("");
+    const [newKeyScopes, setNewKeyScopes] = useState<string[]>(["read", "write"]);
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
+    const [organizationForm, setOrganizationForm] = useState({ name: "", email: "" });
 
     const { data: profile } = useProfile();
     const { data: apiKeys = [], isLoading: keysLoading } = useApiKeys();
@@ -90,17 +91,29 @@ export default function Settings() {
     const deleteWebhookMutation = useDeleteWebhook();
     const updateProfileMutation = useUpdateProfile();
 
-    console.log(profile); // Keep for demo debugging
+    useEffect(() => {
+        if (profile || company) {
+            setOrganizationForm({
+                name: profile?.name || company?.name || "",
+                email: profile?.email || company?.email || "",
+            });
+        }
+    }, [profile, company]);
 
     const handleGenerateKey = () => {
         if (!newKeyName.trim()) {
             toast.error("Please enter a name for the API key");
             return;
         }
-        generateKeyMutation.mutate({ name: newKeyName.trim() }, {
-            onSuccess: () => {
+        generateKeyMutation.mutate({ name: newKeyName.trim(), environment: "test", scopes: newKeyScopes }, {
+            onSuccess: (createdKey: ApiKey) => {
                 setIsGenerateModalOpen(false);
                 setNewKeyName("");
+                setNewKeyScopes(["read", "write"]);
+                if (createdKey?.key) {
+                    navigator.clipboard.writeText(createdKey.key).catch(() => undefined);
+                    toast.success("Test key created and copied. Store it securely; it will not be shown again.");
+                }
             }
         });
     };
@@ -120,27 +133,34 @@ export default function Settings() {
         }
     };
 
-    const handleToggleTestMode = () => {
-        updateProfileMutation.mutate({ isTestMode: !company?.isTestMode });
+    const handleSaveOrganization = () => {
+        updateProfileMutation.mutate(organizationForm, {
+            onSuccess: (updatedCompany) => {
+                updateCompany(updatedCompany);
+            },
+        });
     };
 
     return (
         <div className="p-4 lg:p-6 max-w-[1600px] mx-auto space-y-6 animate-fade-in">
-            {/* Header */}
-            <div className="flex items-center justify-end">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                <div><p className="dashboard-eyebrow">Workspace configuration</p><h1 className="mt-2 text-3xl">Organization settings</h1><p className="mt-2 text-sm text-[#77766e]">Manage profile, access, integrations, usage, and alerts.</p></div>
                 {company?.isTestMode && (
                     <Button
-                        onClick={handleToggleTestMode}
-                        className="h-8 px-4 text-[10px] font-bold bg-emerald-500 hover:bg-emerald-400 text-black"
+                        variant="outline"
+                        onClick={() => {
+                            setActiveTab("api");
+                            toast.info("Live access requires production review. Your sandbox remains active.");
+                        }}
                     >
-                        <Zap className="w-3 h-3 mr-2" />
-                        Go Live
+                        <Zap className="h-4 w-4" />
+                        Review live setup
                     </Button>
                 )}
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center gap-2 border-b border-[#222] overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1 overflow-x-auto border-b border-[#d9d6cd] no-scrollbar">
                 {[
                     { id: "organization", label: "Organization", icon: Building2 },
                     { id: "api", label: "API Keys", icon: Key },
@@ -155,8 +175,8 @@ export default function Settings() {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as SettingsTab)}
                             className={`flex items-center gap-2 px-4 py-3 text-xs font-semibold transition-all duration-200 border-b-2 whitespace-nowrap ${activeTab === tab.id
-                                ? "text-white border-white"
-                                : "text-zinc-500 hover:text-zinc-300 border-transparent hover:bg-[#111]"
+                                ? "border-[#11a879] text-[#087f5b]"
+                                : "border-transparent text-[#77766e] hover:bg-[#fffdf8] hover:text-[#20211e]"
                                 }`}
                         >
                             <Icon className="w-3.5 h-3.5" />
@@ -181,7 +201,8 @@ export default function Settings() {
                                     <label className="text-xs text-zinc-500 mb-2 block font-medium">Organization Name</label>
                                     <input
                                         type="text"
-                                        defaultValue={company?.name}
+                                        value={organizationForm.name}
+                                        onChange={(event) => setOrganizationForm((current) => ({ ...current, name: event.target.value }))}
                                         className="w-full h-10 px-4 bg-card dark:bg-white/[0.04] border border-border dark:border-white/[0.08] rounded-lg text-sm text-foreground dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
                                         placeholder="Company Name"
                                     />
@@ -199,7 +220,8 @@ export default function Settings() {
                                     <label className="text-xs text-muted-foreground dark:text-zinc-500 mb-2 block font-medium">Business Email</label>
                                     <input
                                         type="email"
-                                        defaultValue={company?.email || 'admin@globalpay.com'}
+                                        value={organizationForm.email}
+                                        onChange={(event) => setOrganizationForm((current) => ({ ...current, email: event.target.value }))}
                                         className="w-full h-10 px-4 bg-card dark:bg-white/[0.04] border border-border dark:border-white/[0.08] rounded-lg text-sm text-foreground dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
                                     />
                                 </div>
@@ -215,6 +237,8 @@ export default function Settings() {
                                 <Button
                                     variant="institutional"
                                     className="h-10 px-6"
+                                    onClick={handleSaveOrganization}
+                                    disabled={updateProfileMutation.isPending}
                                 >
                                     <Save className="w-4 h-4 mr-2" />
                                     Save Changes
@@ -232,7 +256,7 @@ export default function Settings() {
                         <div className="card-header flex items-center justify-between">
                             <div>
                                 <h3 className="font-semibold text-foreground dark:text-white text-[15px] mb-1">API Keys</h3>
-                                <p className="text-xs text-muted-foreground dark:text-zinc-500">Programmatic access to the GlobalPay infrastructure</p>
+                                <p className="text-xs text-muted-foreground dark:text-zinc-500">Programmatic access to the Zapzive infrastructure</p>
                             </div>
                             <Button
                                 variant="institutional"
@@ -269,6 +293,27 @@ export default function Settings() {
                                             autoFocus
                                         />
                                     </div>
+                                    <div className="grid gap-2">
+                                        <Label className="text-zinc-400">Permissions</Label>
+                                        <div className="grid gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                                            {[
+                                                ["read", "Read resources and balances"],
+                                                ["write", "Create and update sandbox resources"],
+                                                ["approve", "Approve payroll and release escrow funds"],
+                                            ].map(([scope, label]) => (
+                                                <label key={scope} className="flex items-start gap-3 text-xs text-zinc-300">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={newKeyScopes.includes(scope)}
+                                                        onChange={(event) => setNewKeyScopes((current) => event.target.checked ? [...new Set([...current, scope])] : current.filter((item) => item !== scope))}
+                                                        className="mt-0.5 accent-emerald-500"
+                                                    />
+                                                    <span><strong className="font-mono text-emerald-400">{scope}</strong><br /><span className="text-zinc-500">{label}</span></span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <p className="text-[11px] text-zinc-500">Choose only what this integration needs. Live keys remain unavailable until production review.</p>
+                                    </div>
                                 </div>
                                 <DialogFooter>
                                     <Button
@@ -280,7 +325,7 @@ export default function Settings() {
                                     </Button>
                                     <Button
                                         onClick={handleGenerateKey}
-                                        disabled={generateKeyMutation.isPending || !newKeyName.trim()}
+                                        disabled={generateKeyMutation.isPending || !newKeyName.trim() || newKeyScopes.length === 0}
                                         className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold"
                                     >
                                         {generateKeyMutation.isPending ? "Generating..." : "Generate Key"}
@@ -303,26 +348,16 @@ export default function Settings() {
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <code className="text-xs font-mono text-muted-foreground dark:text-zinc-400 bg-secondary/50 dark:bg-black/40 border border-border dark:border-white/[0.05] px-3 py-1.5 rounded-lg flex-1 md:flex-none">
-                                                        {showApiKey === apiKey.id ? apiKey.key : (apiKey.key?.slice(0, 16) || "") + '••••••••••••••••'}
+                                                        {apiKey.key || "••••••••••••••••"}
                                                     </code>
                                                     <button
                                                         onClick={() => {
-                                                            setShowApiKey(showApiKey === apiKey.id ? null : apiKey.id);
-                                                            if (showApiKey !== apiKey.id) {
-                                                                toast.info("Confidential: Key visibility toggled");
+                                                            if (apiKey.key?.startsWith("••")) {
+                                                                toast.info("This key is masked. Generate a replacement if you no longer have the original.");
+                                                                return;
                                                             }
+                                                            handleCopyKey(apiKey.key, apiKey.id);
                                                         }}
-                                                        className="p-2 text-zinc-500 hover:text-white hover:bg-white/5 rounded-lg transition-all"
-                                                        title={showApiKey === apiKey.id ? "Hide API key" : "Show API key"}
-                                                    >
-                                                        {showApiKey === apiKey.id ? (
-                                                            <EyeOff className="w-4 h-4" />
-                                                        ) : (
-                                                            <Eye className="w-4 h-4" />
-                                                        )}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleCopyKey(apiKey.key, apiKey.id)}
                                                         className="p-2 text-zinc-500 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-all"
                                                         title="Copy API key"
                                                     >
@@ -352,8 +387,9 @@ export default function Settings() {
                                             </span>
                                             <span className="flex items-center gap-1.5 font-bold text-emerald-500/70">
                                                 <Zap className="w-3 h-3" />
-                                                {apiKey.key?.startsWith('kash_test') ? 'Test Environment' : 'Live Environment'}
+                                                {apiKey.environment === 'test' ? 'Test Environment' : 'Live Environment'}
                                             </span>
+                                            <span className="font-mono normal-case tracking-normal text-zinc-500">{apiKey.scopes?.join(' · ') || 'read · write'}</span>
                                         </div>
                                     </div>
                                 ))

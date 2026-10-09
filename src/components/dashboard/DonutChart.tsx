@@ -34,12 +34,12 @@ export default function DonutChart({ segments, total, size = 160 }: DonutChartPr
         };
     });
 
-    // Professional Financial Palette (Emerald, Blue, Violet, Amber)
+    // Zapzive financial palette: one accent with clear neutral separation.
     const colors = [
-        '#10b981', // emerald-500
-        '#3b82f6', // blue-500
-        '#8b5cf6', // violet-500
-        '#f59e0b', // amber-500
+        '#087f5b',
+        '#11a879',
+        '#76d4b5',
+        '#aaa9a1',
     ];
 
     return (
@@ -51,7 +51,7 @@ export default function DonutChart({ segments, total, size = 160 }: DonutChartPr
                     cy="50"
                     r={radius}
                     fill="none"
-                    stroke="#27272a"
+                    stroke="#e1dfd7"
                     strokeWidth={strokeWidth}
                 />
 
@@ -77,10 +77,10 @@ export default function DonutChart({ segments, total, size = 160 }: DonutChartPr
 
             {/* Center text */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <div className="text-2xl font-bold text-foreground tabular-nums tracking-tight">
+                <div className="text-2xl font-semibold text-[#20211e] tabular-nums tracking-[-.05em]">
                     ${(total / 1000).toFixed(1)}K
                 </div>
-                <div className="text-[10px] text-emerald-500 font-bold flex items-center gap-0.5 mt-0.5">
+                <div className="mt-1 flex items-center gap-0.5 font-mono text-[9px] font-medium text-[#087f5b]">
                     <TrendingDown className="w-3 h-3 rotate-180" /> 12%
                 </div>
             </div>

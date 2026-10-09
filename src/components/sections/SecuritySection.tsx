@@ -1,122 +1,76 @@
-import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
-import { Shield, Lock, Eye, FileCheck, Fingerprint, Globe, KeyRound } from "lucide-react";
+import { Check, FileCheck2, Fingerprint, LockKeyhole, UsersRound } from "lucide-react";
 
-const securityFeatures = [
+const controls = [
   {
-    icon: Shield,
-    title: "Non-custodial treasury controls",
-    description: "Configure treasury movement without giving up operational visibility or approval discipline.",
+    icon: UsersRound,
+    title: "Clear roles",
+    copy: "Choose who can prepare, approve, review, or manage a workspace.",
   },
   {
-    icon: Lock,
-    title: "Role-based approvals",
-    description: "Require sign-off by amount, corridor, recipient, escrow release, or risk review state.",
+    icon: LockKeyhole,
+    title: "Visible status",
+    copy: "See whether a payment is ready, waiting for review, blocked, or complete.",
   },
   {
-    icon: FileCheck,
-    title: "KYC and AML workflows",
-    description: "Attach identity, counterparty, and review status to each payout and escrow movement.",
-  },
-  {
-    icon: Eye,
-    title: "Audit-ready records",
-    description: "Keep approval logs, settlement events, FX references, receipts, and compliance notes in one trail.",
+    icon: FileCheck2,
+    title: "Activity record",
+    copy: "Keep the decision, person, time, and reference with each important change.",
   },
   {
     icon: Fingerprint,
-    title: "Multi-party approval flows",
-    description: "Separate request, review, approval, and release permissions for sensitive operations.",
+    title: "Practice review flows",
+    copy: "Use test-mode identity and risk review states without implying that an external provider is connected.",
   },
-  {
-    icon: Globe,
-    title: "Transaction monitoring",
-    description: "Flag unusual activity, high-risk counterparties, and payout corridor exceptions before release.",
-  },
-  {
-    icon: KeyRound,
-    title: "Secure API access",
-    description: "Use API keys, sandbox mode, idempotency, webhooks, and logs for controlled integration.",
-  },
-];
-
-const partners = [
-  { name: "Polygon", desc: "Network" },
-  { name: "Circle", desc: "USDC Issuer" },
-  { name: "Chainalysis", desc: "Compliance" },
-  { name: "Fireblocks", desc: "Custody" },
 ];
 
 export function SecuritySection() {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
-
   return (
-    <section ref={ref} className="py-32 lg:py-40 relative overflow-hidden">
-      {/* Background glow - Removed as requested */}
-
-      <div className="container mx-auto relative z-10 px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-20 items-center">
-          {/* Left - Content */}
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <span className="tag text-[10px] font-black uppercase tracking-[0.2em] bg-brand-500/10 text-brand-400 border border-brand-500/20 px-3 py-1 rounded-full mb-6 inline-block">Trust Architecture</span>
-            <h2 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-zinc-50 mb-8 leading-tight tracking-tight uppercase">
-              Built for secure
-              <br />
-              <span className="text-brand-500">financial operations</span>
+    <section id="controls" className="border-b border-[#d9d6cd] bg-[#fffdf8] px-6 py-24 sm:py-32">
+      <div className="homepage-frame">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,.72fr)] lg:items-end lg:gap-20">
+          <div>
+            <p className="homepage-eyebrow">Payment controls</p>
+            <h2 className="homepage-title">
+              Decide who can prepare, approve,<br />
+              <em>and release a payment.</em>
             </h2>
-            <p className="text-xl sm:text-2xl text-muted-foreground mb-12 leading-relaxed">
-              Zapzive gives teams visibility and control across every payout, approval, escrow release, and remittance flow, with audit-ready records and operational safeguards built in.
-            </p>
+          </div>
+          <p className="homepage-copy mt-0">
+            Assign roles, require approval, and keep a record of every important change. The same payment record shows what happened, who acted, and what can happen next.
+          </p>
+        </div>
 
-            {/* Security partners */}
-            <div className="grid grid-cols-2 gap-4">
-              {partners.map((partner) => (
-                <div
-                  key={partner.name}
-                  className="bg-transparent border border-white/5 p-5 flex items-center gap-4 rounded-2xl transition-colors"
-                >
-                  <div className="w-12 h-12 flex items-center justify-center">
-                    <span className="text-xl font-black text-brand-400">{partner.name[0]}</span>
-                  </div>
-                  <div>
-                    <p className="text-base font-black text-white">{partner.name}</p>
-                    <p className="text-sm text-zinc-500 font-medium">{partner.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
+        <div className="mt-14 grid border-y border-[#d9d6cd] md:grid-cols-2">
+          {controls.map(({ icon: Icon, title, copy }, index) => (
+            <article
+              key={title}
+              className={`py-8 ${index < controls.length - 1 ? "border-b border-[#d9d6cd]" : ""} ${index < 2 ? "md:border-b" : "md:border-b-0"} ${index % 2 === 1 ? "md:border-l md:border-[#d9d6cd] md:pl-10" : "md:pr-10"}`}
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e8f4ef] text-[#087f5b]">
+                <Icon size={19} strokeWidth={1.8} />
+              </span>
+              <h3 className="mt-5 text-xl font-bold tracking-[-.045em] text-[#20211e]">{title}</h3>
+              <p className="mt-3 max-w-sm text-[15px] leading-7 text-[#5d5d56]">{copy}</p>
+            </article>
+          ))}
+        </div>
 
-          {/* Right - Features grid */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-          >
-            {securityFeatures.map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.4, delay: 0.3 + index * 0.1, ease: [0.16, 1, 0.3, 1] }}
-                className="bg-[#0d0f0f] p-6 group rounded-[20px] border border-white/10 hover:border-zinc-600 transition-all duration-500"
-              >
-                <feature.icon className="w-7 h-7 text-brand-500 mb-4 transition-transform group-hover:text-brand-400" />
-                <h4 className="font-extrabold text-zinc-50 text-lg mb-2 tracking-tight">
-                  {feature.title}
-                </h4>
-                <p className="text-sm text-zinc-400 leading-relaxed font-medium">
-                  {feature.description}
-                </p>
-              </motion.div>
+        <div className="mt-10 grid gap-6 border-y border-[#d9d6cd] py-7 lg:grid-cols-[minmax(0,.72fr)_minmax(0,1.15fr)_180px] lg:items-center lg:gap-10">
+          <div>
+            <p className="homepage-eyebrow">Approval sequence</p>
+            <h3 className="mt-3 text-2xl font-bold tracking-[-.055em] text-[#20211e]">A release stays unavailable until its assigned review is complete.</h3>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {["Payment created", "Approval complete", "Release status updated"].map((step, index) => (
+              <div key={step} className="flex items-center gap-2 text-sm font-semibold text-[#34352f]">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#e8f4ef] font-mono text-[10px] text-[#087f5b]">0{index + 1}</span>
+                {step}
+              </div>
             ))}
-          </motion.div>
+          </div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-[#087f5b] lg:justify-end">
+            <Check size={16} /> Record attached
+          </div>
         </div>
       </div>
     </section>

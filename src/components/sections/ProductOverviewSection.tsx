@@ -1,87 +1,65 @@
-import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
-import { ArrowRightLeft, CircleDollarSign, FileCheck2, ShieldCheck, WalletCards } from "lucide-react";
+import { ArrowRight, CircleDollarSign, FileCheck2, LockKeyhole, ShieldCheck, WalletCards } from "lucide-react";
+import { Link } from "react-router-dom";
 
-const products = [
-  {
-    icon: WalletCards,
-    title: "Treasury",
-    description: "Fund operating balances, allocate liquidity, and track cash positions across stablecoin and local payout rails.",
-  },
-  {
-    icon: CircleDollarSign,
-    title: "Payroll and payouts",
-    description: "Create payout batches for teams, vendors, and contractors with approval state, recipient status, and reconciliation data.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Escrow",
-    description: "Lock milestone funds, require approvals, and release only after verification or delivery confirmation.",
-  },
-  {
-    icon: FileCheck2,
-    title: "Compliance",
-    description: "Review KYC, AML, risk scores, audit trails, and transaction monitoring from the same operating layer.",
-  },
+const modules = [
+  { icon: WalletCards, title: "Treasury", action: "Fund and allocate", code: "01" },
+  { icon: CircleDollarSign, title: "Payouts", action: "Batch and approve", code: "02" },
+  { icon: LockKeyhole, title: "Escrow", action: "Lock and release", code: "03" },
+  { icon: ShieldCheck, title: "Compliance", action: "Review and record", code: "04" },
 ];
 
 export function ProductOverviewSection() {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
-
   return (
-    <section id="platform" ref={ref} className="py-24 sm:py-32 relative bg-[#050606] border-y border-white/5">
-      <div className="container mx-auto px-6 lg:px-8">
-        <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-12 lg:gap-20 items-start">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.6 }}
-            className="lg:sticky lg:top-28"
-          >
-            <span className="text-[10px] font-black uppercase tracking-[0.28em] text-brand-400">Platform</span>
-            <h2 className="mt-5 text-3xl sm:text-5xl font-extrabold text-white leading-tight tracking-tight">
-              One operating layer for global money movement.
-            </h2>
-            <p className="mt-6 text-base sm:text-lg text-zinc-400 leading-relaxed max-w-xl">
-              Zapzive connects stablecoin settlement, local cash-out, smart escrow, approval workflows, and treasury visibility so finance teams can move money with control instead of chaos.
-            </p>
-          </motion.div>
+    <section id="platform" className="border-y border-[#34352f] bg-[#20211e] px-6 py-20 text-[#f5f3ee] sm:py-28">
+      <div className="mx-auto grid max-w-[1160px] gap-14 lg:grid-cols-[.78fr_1.22fr] lg:items-center lg:gap-20">
+        <div>
+          <p className="mono-label text-[#76d4b5]">The platform</p>
+          <h2 className="mt-5 max-w-xl !text-[#f5f3ee] text-4xl font-semibold leading-[.98] tracking-[-.065em] sm:text-6xl">
+            One layer.<br /><em className="text-[#11a879]">Every money flow.</em>
+          </h2>
+          <p className="mt-7 max-w-lg text-lg leading-8 text-[#b9b8b1]">Fund, approve, settle, and reconcile without stitching together separate tools.</p>
 
-          <div className="grid sm:grid-cols-2 gap-4">
-            {products.map((product, index) => (
-              <motion.div
-                key={product.title}
-                initial={{ opacity: 0, y: 24 }}
-                animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.5, delay: index * 0.08 }}
-                className="rounded-[20px] border border-white/10 bg-[#0d0f0f] p-6 hover:border-zinc-600 transition-colors"
-              >
-                <div className="mb-8 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03]">
-                  <product.icon className="h-5 w-5 text-brand-400" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-3">{product.title}</h3>
-                <p className="text-sm leading-relaxed text-zinc-400">{product.description}</p>
-              </motion.div>
-            ))}
-            <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: 0.32 }}
-              className="sm:col-span-2 rounded-[20px] border border-blue-500/20 bg-blue-500/[0.04] p-6"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20">
-                  <ArrowRightLeft className="h-5 w-5 text-blue-300" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-2">Stablecoin to local cash, with the operational record attached.</h3>
-                  <p className="text-sm leading-relaxed text-zinc-400">
-                    Every movement can carry corridor, FX rate, payment rail, counterparty, approval, compliance, and audit state.
-                  </p>
-                </div>
+          <div className="mt-9 grid max-w-md grid-cols-[1fr_auto_1fr_auto_1fr] items-center border-y border-[#ffffff1a] py-5">
+            {[
+              ["01", "Fund"],
+              ["02", "Control"],
+              ["03", "Settle"],
+            ].map(([number, label], index) => (
+              <div key={label} className="contents">
+                <div><p className="font-mono text-[9px] text-[#76d4b5]">{number}</p><p className="mt-1.5 text-sm font-semibold">{label}</p></div>
+                {index < 2 && <ArrowRight size={14} className="text-[#575750]" />}
               </div>
-            </motion.div>
+            ))}
+          </div>
+
+          <Link to="/features" className="mt-8 inline-flex items-center gap-2 border-b border-[#76d4b5] pb-1 text-sm font-semibold text-[#76d4b5]">Explore the platform <ArrowRight size={15} /></Link>
+        </div>
+
+        <div className="border-y border-[#ffffff1a] text-[#f5f3ee]">
+          <div className="flex flex-col justify-between gap-3 border-b border-[#ffffff1a] py-5 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center text-[#76d4b5]"><FileCheck2 size={18} /></span><div><p className="text-sm font-semibold">Operating map</p><p className="mono-label mt-1 text-[#77766e]">One connected record</p></div></div>
+            <span className="self-start font-mono text-[10px] uppercase tracking-[.1em] text-[#76d4b5] sm:self-auto"><span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[#11a879]" />Active</span>
+          </div>
+
+          <div className="relative grid sm:grid-cols-2">
+            {modules.map(({ icon: Icon, title, action, code }) => (
+              <div key={title} className={`group py-6 transition-colors hover:bg-white/[.025] ${code !== "01" ? "border-t border-[#ffffff1a] sm:border-t-0" : ""} ${code === "02" || code === "04" ? "sm:border-l sm:pl-7" : "sm:pr-7"}`}>
+                <div className="flex items-start justify-between gap-4"><span className="flex h-8 w-8 items-center justify-center text-[#76d4b5]"><Icon size={18} strokeWidth={1.8} /></span><span className="font-mono text-[9px] text-[#77766e]">{code}</span></div>
+                <h3 className="mt-6 text-xl font-semibold tracking-[-.04em] text-[#f5f3ee]">{title}</h3>
+                <p className="mt-2 text-sm text-[#b9b8b1]">{action}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-[#ffffff1a] py-5">
+            <p className="mono-label text-[#77766e]">Settlement route</p>
+            <div className="mt-4 grid grid-cols-1 items-center gap-3 text-center sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:text-left">
+              <div><p className="text-xs font-semibold">Treasury</p><p className="mt-1 font-mono text-[9px] text-[#77766e]">USD</p></div>
+              <ArrowRight size={14} className="mx-auto rotate-90 text-[#11a879] sm:rotate-0" />
+              <div className="sm:text-center"><p className="text-xs font-semibold text-[#76d4b5]">Control layer</p><p className="mt-1 font-mono text-[9px] text-[#77766e]">USDC rail</p></div>
+              <ArrowRight size={14} className="mx-auto rotate-90 text-[#11a879] sm:rotate-0" />
+              <div className="sm:text-right"><p className="text-xs font-semibold">Local payout</p><p className="mt-1 font-mono text-[9px] text-[#77766e]">KES</p></div>
+            </div>
           </div>
         </div>
       </div>

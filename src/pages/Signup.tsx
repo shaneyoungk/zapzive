@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSignup } from '@/hooks/use-auth';
 import { ZapziveLogo } from '@/components/ui/ZapziveLogo';
-import DarkVeil from "@/components/ui/DarkVeil";
 
 export default function Signup() {
     const navigate = useNavigate();
@@ -32,9 +31,8 @@ export default function Signup() {
             case 'email':
                 return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? 'Invalid email address' : '';
             case 'password':
-                if (value.length < 8) return 'Password must be at least 8 characters';
-                if (!/(?=.*[a-z])/.test(value)) return 'Password must contain a lowercase letter';
-                if (!/(?=.*[A-Z])/.test(value)) return 'Password must contain an uppercase letter';
+                if (value.length < 12) return 'Password must be at least 12 characters';
+                if (!/[A-Za-z]/.test(value)) return 'Password must contain a letter';
                 if (!/(?=.*\d)/.test(value)) return 'Password must contain a number';
                 return '';
             case 'confirmPassword':
@@ -102,51 +100,31 @@ export default function Signup() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden selection:bg-emerald-500/30">
-            {/* Dynamic Background */}
-            <div className="fixed inset-0 z-0 pointer-events-none bg-black">
-                <DarkVeil
-                    hueShift={160}
-                    noiseIntensity={0.02}
-                    scanlineIntensity={0.05}
-                    speed={0.2}
-                    scanlineFrequency={0.8}
-                    warpAmount={0.15}
-                />
-            </div>
+        <div className="public-page auth-page min-h-screen flex items-center justify-center bg-[#f5f3ee] px-5 py-24 selection:bg-[#b9d9cc]">
 
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
+                initial={false}
                 className="w-full max-w-md relative z-10"
             >
                 {/* Logo and Header */}
                 <div className="text-center mb-8">
                     <motion.div
-                        initial={{ scale: 0.9 }}
-                        animate={{ scale: 1 }}
-                        transition={{ duration: 0.3 }}
+                        initial={false}
                         className="flex justify-center mb-6"
                     >
-                        <Link to="/" className="inline-block mx-auto text-center">
-                            <div className="w-16 h-16 flex justify-center">
-                                <ZapziveLogo />
-                            </div>
-                        </Link>
+                        <Link to="/" className="auth-brand" aria-label="Zapzive home"><ZapziveLogo size="md" /></Link>
                     </motion.div>
-                    <h1 className="text-4xl font-extrabold text-zinc-50 mb-3 tracking-tight">
-                        Create Your Account
+                    <p className="mono-label mb-4 text-[#087f5b]">Create your finance workspace</p>
+                    <h1 className="text-4xl font-semibold text-[#20211e] mb-3 tracking-[-.055em]">
+                        Create your account
                     </h1>
-                    <p className="text-zinc-400 text-lg">Join thousands of companies managing global payments</p>
+                    <p className="text-zinc-400 text-lg">Create a workspace to explore Zapzive with test data.</p>
                 </div>
 
                 {/* Signup Form */}
                 <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="bg-gradient-to-br from-[#111] via-[#050505] to-black backdrop-blur-xl border border-zinc-700/50 rounded-[2rem] p-8 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.8)]"
+                    initial={false}
+                    className="premium-card p-7 sm:p-8"
                 >
                     <form onSubmit={handleSubmit} className="space-y-5">
                         {/* Full Name */}
@@ -248,7 +226,7 @@ export default function Signup() {
                             )}
                             {!errors.password && formData.password && (
                                 <p className="text-zinc-500 text-xs mt-1.5">
-                                    Strong password • 8+ characters, uppercase, lowercase, number
+                                    Strong password · 12+ characters with a letter and number
                                 </p>
                             )}
                         </div>
@@ -361,7 +339,7 @@ export default function Signup() {
                         <Button
                             type="submit"
                             disabled={signupMutation.isPending}
-                            className="w-full bg-white hover:bg-zinc-200 text-black font-bold py-6 rounded-xl transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+                            className="w-full bg-[#183a30] hover:bg-[#11a879] text-[#f5f3ee] hover:text-[#20211e] font-semibold py-6 rounded-[10px] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mt-6"
                         >
                             {signupMutation.isPending ? (
                                 <span className="flex items-center justify-center gap-2">
@@ -391,13 +369,13 @@ export default function Signup() {
                 {/* Terms */}
                 <p className="text-center text-zinc-500 text-sm mt-6">
                     By creating an account, you agree to our{' '}
-                    <a href="#" className="text-zinc-400 hover:text-white transition-colors underline">
+                    <Link to="/terms" className="text-zinc-400 hover:text-white transition-colors underline">
                         Terms of Service
-                    </a>{' '}
+                    </Link>{' '}
                     and{' '}
-                    <a href="#" className="text-zinc-400 hover:text-white transition-colors underline">
+                    <Link to="/privacy" className="text-zinc-400 hover:text-white transition-colors underline">
                         Privacy Policy
-                    </a>
+                    </Link>
                 </p>
             </motion.div>
         </div>

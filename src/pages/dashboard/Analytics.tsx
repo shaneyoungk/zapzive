@@ -43,59 +43,25 @@ export default function Analytics() {
 
     return (
         <div className="p-4 lg:p-6 max-w-[1600px] mx-auto space-y-6 animate-fade-in">
-            {/* Header */}
-            <div className="flex items-center justify-end gap-3">
-                <Button variant="outline" className="h-8 px-4 text-[10px] font-semibold border-zinc-800 bg-[#111] text-zinc-400 hover:text-white hover:bg-[#222]">
-                    <Calendar className="w-3 h-3 mr-2" />
-                    Date Range
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                <div><p className="dashboard-eyebrow">Performance</p><h1 className="mt-2 text-3xl">Operational analytics</h1><p className="mt-2 text-sm text-[#77766e]">Volume, transaction quality, and product activity in one view.</p></div>
+                <div className="flex items-center gap-2">
+                <Button variant="outline">
+                    <Calendar className="h-4 w-4" />
+                    Last 6 months
                 </Button>
-                <Button onClick={exportReport} className="h-8 px-4 text-[10px] font-bold bg-white text-black hover:bg-zinc-200">
-                    <Download className="w-3 h-3 mr-2" />
-                    Export Report
+                <Button onClick={exportReport}>
+                    <Download className="h-4 w-4" />
+                    Export report
                 </Button>
+                </div>
             </div>
 
-            {/* Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Total Volume</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 font-mono tabular-nums">
-                        {overviewLoading ? "..." : `$${(overview?.totalVolume || 0).toLocaleString()}`}
-                    </h3>
-                    <p className="text-xs text-zinc-500 font-medium">From recorded transactions</p>
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Transactions</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 tabular-nums">
-                        {overviewLoading ? "..." : (overview?.totalTransactions || 0).toLocaleString()}
-                    </h3>
-                    <p className="text-xs text-zinc-500 font-medium">All recorded transactions</p>
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Avg Transaction</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 font-mono tabular-nums">
-                        {overviewLoading ? "..." : `$${(overview?.avgTransactionValue || 0).toFixed(2)}`}
-                    </h3>
-                    <p className="text-xs text-zinc-500">Per transaction</p>
-                </div>
-
-                <div className="bg-[#111] border border-[#222] rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Active Users</h3>
-                    </div>
-                    <h3 className="text-2xl font-medium tracking-tight text-white mb-1 tabular-nums">
-                        {overviewLoading ? "..." : (overview?.activeUsers || 0).toLocaleString()}
-                    </h3>
-                    <p className="text-xs text-zinc-500 font-medium">Verified workers</p>
-                </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <MetricCard title="Total volume" value={overviewLoading ? "…" : `$${(overview?.totalVolume || 0).toLocaleString()}`} icon={DollarSign} subtitle="Recorded transactions" />
+                <MetricCard title="Transactions" value={overviewLoading ? "…" : (overview?.totalTransactions || 0).toLocaleString()} icon={BarChart3} subtitle="All activity" />
+                <MetricCard title="Average value" value={overviewLoading ? "…" : `$${(overview?.avgTransactionValue || 0).toFixed(2)}`} icon={TrendingUp} subtitle="Per transaction" />
+                <MetricCard title="Active users" value={overviewLoading ? "…" : (overview?.activeUsers || 0).toLocaleString()} icon={Users} subtitle="Verified workers" />
             </div>
 
             {/* Charts */}
@@ -157,8 +123,8 @@ export default function Analytics() {
                             <AreaChart data={transactionVolumeData}>
                                 <defs>
                                     <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                                        <stop offset="5%" stopColor="#11a879" stopOpacity={0.24} />
+                                        <stop offset="95%" stopColor="#11a879" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border dark:text-white/5" />
@@ -176,7 +142,7 @@ export default function Analytics() {
                                 <Area
                                     type="monotone"
                                     dataKey="volume"
-                                    stroke="#6366f1"
+                                    stroke="#087f5b"
                                     strokeWidth={2}
                                     fillOpacity={1}
                                     fill="url(#volumeGradient)"
@@ -192,7 +158,7 @@ export default function Analytics() {
                 <div className="premium-card p-5">
                     <div className="flex items-start justify-between mb-3">
                         <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                            <DollarSign className="w-5 h-5 text-blue-500" />
+                            <DollarSign className="w-5 h-5 text-[#11a879]" />
                         </div>
                         <ArrowUpRight className="w-4 h-4 text-emerald-500" />
                     </div>
@@ -206,7 +172,7 @@ export default function Analytics() {
                 <div className="premium-card p-5">
                     <div className="flex items-start justify-between mb-3">
                         <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                            <Users className="w-5 h-5 text-purple-500" />
+                            <Users className="w-5 h-5 text-[#11a879]" />
                         </div>
                         <ArrowUpRight className="w-4 h-4 text-emerald-500" />
                     </div>
@@ -220,7 +186,7 @@ export default function Analytics() {
                 <div className="premium-card p-5">
                     <div className="flex items-start justify-between mb-3">
                         <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                            <Globe className="w-5 h-5 text-amber-500" />
+                            <Globe className="w-5 h-5 text-[#11a879]" />
                         </div>
                         <ArrowUpRight className="w-4 h-4 text-emerald-500" />
                     </div>

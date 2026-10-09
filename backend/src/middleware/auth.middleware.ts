@@ -1,45 +1,70 @@
 import { Request, Response, NextFunction } from 'express';
-import prisma from '../lib/prisma';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import prisma from '../lib/prisma';
+import { readCookie } from '../lib/security';
 
 export interface AuthRequest extends Request {
-    user?: any;
+    user?: {
+        id: string;
+        companyId: string;
+        email?: string;
+        name?: string;
+        role: string;
+        status: string;
+    };
     companyId?: string;
+    authType?: 'session' | 'api_key';
+    apiKeyScopes?: string[];
+}
+
+type SessionToken = jwt.JwtPayload & {
+    sub?: string;
+    companyId?: string;
+    email?: string;
+    name?: string;
+    role?: string;
+    status?: string;
+    authVersion?: number;
+};
+
+function invalidSession(res: Response, message: string) {
+    return res.status(401).json({
+        error: 'Unauthorized',
+        code: 'SESSION_INVALID',
+        message,
+    });
 }
 
 export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
         const authHeader = req.headers.authorization;
-
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({ error: 'Unauthorized', message: 'No token provided' });
+        const cookieToken = readCookie(req, 'zapzive_session');
+        if (cookieToken && !authHeader && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && req.headers['x-requested-with'] !== 'XMLHttpRequest') {
+            return res.status(403).json({
+                error: 'A trusted request header is required for cookie-authenticated changes',
+                code: 'CSRF_CHECK_FAILED',
+            });
         }
+        const bearerToken = authHeader?.startsWith('Bearer ')
+            ? authHeader.slice('Bearer '.length).trim()
+            : undefined;
+        const basicToken = authHeader?.startsWith('Basic ')
+            ? (() => {
+                try {
+                    const decoded = Buffer.from(authHeader.slice('Basic '.length).trim(), 'base64').toString('utf8');
+                    return decoded.split(':', 1)[0]?.trim() || undefined;
+                } catch {
+                    return undefined;
+                }
+            })()
+            : undefined;
+        const apiCredential = bearerToken || basicToken;
+        const token = apiCredential || cookieToken;
 
-        const token = authHeader.slice('Bearer '.length).trim();
         if (!token) {
-            return res.status(401).json({ error: 'Unauthorized', message: 'Empty token provided' });
+            return invalidSession(res, 'No token provided');
         }
-
-        // In this implementation, the token is the user's ID or a random string stored in the "user" object's "token" field
-        // Since the current schema doesn't have a Token model, we'll assume the token matches a user's session
-        // For the sake of this demo, we'll look up the user by email if the "token" starts with "demo_" 
-        // Or handle it based on how useSignup/useLogin currently work (they just send a random hex string)
-
-        // Let's implement a simple lookup for now. In a real app we'd use JWT or a Session model.
-        // For this demo, we'll search for a user whose ID is the "token" (standard practice for simple mocks)
-        // OR we can check if the token exists in a local cache.
-
-        // Given the current Signup/Login code:
-        // const token = crypto.randomBytes(32).toString('hex');
-
-        // We'll search for the user by ID. 
-        // NOTE: In the existing routes, tokens aren't stored in DB. 
-        // I should probably add a token column to User or create a Session model.
-        // For now, I'll use the user ID as the token for simplicity of this implementation, 
-        // but I'll update the routes to return the user ID as token if it makes sense.
-
-        // Actually, let's keep it robust. I'll search for a user with that email if we had it, 
-        // but since we only have the token, I'll assume the token IS the user ID for this refined implementation.
 
         const secret = process.env.JWT_SECRET;
         if (!secret || secret.length < 32) {
@@ -47,31 +72,110 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
             return res.status(500).json({ error: 'Authentication is not configured securely' });
         }
 
-        let payload: { sub?: string };
+        const looksLikeApiKey = Boolean(apiCredential && /^(sk|zapzive)_(test|live)_/.test(apiCredential));
+        if (looksLikeApiKey) {
+            const keyHash = crypto.createHash('sha256').update(apiCredential!).digest('hex');
+            const apiKey = await prisma.apiKey.findUnique({
+                where: { key: keyHash },
+                select: { companyId: true, environment: true, scopes: true, company: { select: { id: true, status: true, isTestMode: true } } },
+            });
+            if (!apiKey || apiKey.company.status !== 'active') return invalidSession(res, 'Invalid or revoked API key');
+            if (apiKey.environment === 'test' && !apiKey.company.isTestMode) {
+                return res.status(403).json({ error: 'This test key cannot access live mode', code: 'ENVIRONMENT_MISMATCH' });
+            }
+            const apiUser = await prisma.user.findFirst({
+                where: { companyId: apiKey.companyId, status: 'active' },
+                select: { id: true, email: true, name: true, role: true, status: true },
+                orderBy: { createdAt: 'asc' },
+            });
+            if (!apiUser) return invalidSession(res, 'The API key owner is no longer active');
+            let scopes: string[] = ['read'];
+            try {
+                const parsed = JSON.parse(apiKey.scopes);
+                if (Array.isArray(parsed)) scopes = parsed.filter((scope): scope is string => typeof scope === 'string');
+            } catch {
+                // A malformed scope record fails closed to read-only access.
+            }
+            const requiredScope = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) ? 'write' : 'read';
+            if (!scopes.includes(requiredScope) && !scopes.includes('admin')) {
+                return res.status(403).json({ error: 'This API key does not have the required scope', code: 'INSUFFICIENT_SCOPE' });
+            }
+            req.user = { id: apiUser.id, companyId: apiKey.companyId, email: apiUser.email, name: apiUser.name, role: apiUser.role, status: apiUser.status };
+            req.companyId = apiKey.companyId;
+            req.authType = 'api_key';
+            req.apiKeyScopes = scopes;
+            await prisma.apiKey.update({ where: { key: keyHash }, data: { lastUsed: new Date() } });
+            next();
+            return;
+        }
+
+        let payload: SessionToken;
         try {
-            payload = jwt.verify(token, secret) as { sub?: string };
+            payload = jwt.verify(token, secret, {
+                algorithms: ['HS256'],
+                issuer: process.env.JWT_ISSUER || 'zapzive-api',
+                audience: process.env.JWT_AUDIENCE || 'zapzive-dashboard',
+            }) as SessionToken;
         } catch {
-            return res.status(401).json({ error: 'Unauthorized', message: 'Invalid or expired token' });
+            return invalidSession(res, 'Invalid or expired token');
         }
 
-        if (!payload.sub) {
-            return res.status(401).json({ error: 'Unauthorized', message: 'Invalid token subject' });
+        if (!payload.sub || !payload.companyId) {
+            return invalidSession(res, 'Please sign in again to refresh your session');
         }
 
-        const user = await prisma.user.findUnique({
-            where: { id: payload.sub },
-            include: { company: true }
+        const user = await prisma.user.findFirst({
+            where: { id: payload.sub, companyId: payload.companyId },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                status: true,
+                authVersion: true,
+                company: { select: { id: true, status: true } },
+            },
         });
-
-        if (!user) {
-            return res.status(401).json({ error: 'Unauthorized', message: 'Invalid or expired token' });
+        if (!user || user.company.status !== 'active' || user.authVersion !== (payload.authVersion || 0)) {
+            return invalidSession(res, 'Your session is no longer valid. Please sign in again.');
         }
 
-        req.user = user;
-        req.companyId = user.companyId;
+        req.user = {
+            id: user.id,
+            companyId: user.company.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            status: user.status,
+        };
+        if (req.user.status !== 'active') {
+            return res.status(403).json({
+                error: 'Account is not active',
+                code: 'ACCOUNT_INACTIVE',
+            });
+        }
+        req.companyId = payload.companyId;
+        req.authType = 'session';
         next();
     } catch (error) {
         console.error('Auth middleware error:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 };
+
+export function requireRole(...roles: string[]) {
+    return (req: AuthRequest, res: Response, next: NextFunction) => {
+        if (req.authType === 'api_key') {
+            const requiredScope = roles.includes('developer') ? 'keys:manage' : roles.includes('approver') ? 'approve' : 'write';
+            if (req.apiKeyScopes?.includes(requiredScope)) return next();
+            return res.status(403).json({ error: 'This API key does not have the required scope', code: 'INSUFFICIENT_SCOPE' });
+        }
+        if (!req.user || !roles.includes(req.user.role)) {
+            return res.status(403).json({
+                error: 'You do not have permission to perform this action',
+                code: 'INSUFFICIENT_PERMISSION',
+            });
+        }
+        next();
+    };
+}

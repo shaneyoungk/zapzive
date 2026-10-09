@@ -7,8 +7,12 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, isHydrated } = useAuth();
     const location = useLocation();
+
+    if (!isHydrated) {
+        return <div className="min-h-screen bg-background" aria-label="Loading session" />;
+    }
 
     if (!isAuthenticated) {
         // Redirect them to the /login page, but save the current location they were

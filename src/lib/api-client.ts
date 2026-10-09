@@ -1,6 +1,103 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const configuredApiUrl = import.meta.env.VITE_API_URL as string | undefined;
+const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+// A stale deployment URL in a developer's .env must not silently route a
+// localhost session away from the local API. This is especially important for
+// wallet challenges: the signature prompt must be created by the same backend
+// that owns the active local session.
+const API_BASE_URL = isLocalBrowser ? 'http://localhost:3001' : (configuredApiUrl || 'http://localhost:3001');
+export const AUTH_STORAGE_KEY = 'zapzive_auth_token';
+
+export interface CryptoAsset {
+    symbol: string;
+    kind: 'erc20' | 'native' | 'sandbox';
+    tokenAddress: string;
+    decimals: number;
+    enabled: boolean;
+    reason: string | null;
+}
+
+export interface CryptoNetwork {
+    chainId: number;
+    name: string;
+    kind: 'onchain' | 'sandbox';
+    testnet: boolean;
+    tokenAddress: string;
+    symbol: string;
+    decimals: number;
+    explorerUrl: string;
+    nativeSymbol: string;
+    assets: CryptoAsset[];
+    enabled: boolean;
+    reason: string | null;
+    walletAddParams: {
+        chainId: string;
+        chainName: string;
+        nativeCurrency: { name: string; symbol: string; decimals: number };
+        rpcUrls: string[];
+        blockExplorerUrls?: string[];
+    } | null;
+}
+
+export interface CryptoWallet {
+    id: string;
+    chainId: number;
+    address: string;
+    createdAt: string;
+}
+
+export interface CryptoPayment {
+    id: string;
+    chainId: number;
+    tokenAddress: string;
+    symbol: string;
+    decimals: number;
+    fromAddress: string;
+    toAddress: string;
+    amount: string;
+    amountUnits: string;
+    reference: string | null;
+    status: 'awaiting_signature' | 'submitted' | 'confirming' | 'settled' | 'failed' | 'reorged';
+    txHash: string | null;
+    nonce: number | null;
+    blockNumber: string | null;
+    confirmations: number;
+    errorCode: string | null;
+    createdAt: string;
+    updatedAt: string;
+    expiresAt: string;
+    explorerUrl: string | null;
+}
+
+export interface CreateCryptoPayment {
+    walletId: string;
+    to: string;
+    amount: string;
+    asset?: string;
+    reference?: string;
+}
+
+export interface PreparedCryptoPayment {
+    payment: CryptoPayment;
+    transaction: { from: string; to: string; data: string; value: string; chainId: string };
+}
+
+export interface CryptoBalances {
+    chainId: number;
+    address: string;
+    simulated: boolean;
+    asset: { symbol: string; kind: 'erc20' | 'native' | 'sandbox'; decimals: number; amount: string; amountUnits: string };
+    feeAsset: { symbol: string; decimals: number; amount: string; amountUnits: string };
+    asOf: string;
+}
+
+function createRequestKey(): string {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    return 'req_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2);
+}
 
 class ApiClient {
     private client: AxiosInstance;
@@ -8,6 +105,7 @@ class ApiClient {
     constructor() {
         this.client = axios.create({
             baseURL: `${API_BASE_URL}/api`,
+            withCredentials: true,
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -18,9 +116,16 @@ class ApiClient {
         this.client.interceptors.request.use(
             (config) => {
                 // Add auth token if available
-                const token = localStorage.getItem('auth_token');
-                if (token) {
+                const token = sessionStorage.getItem(AUTH_STORAGE_KEY);
+                if (token && token !== 'cookie') {
                     config.headers.Authorization = `Bearer ${token}`;
+                }
+                const method = (config.method || 'get').toLowerCase();
+                if (method !== 'get' && method !== 'head' && method !== 'options' && !config.url?.startsWith('/auth/')) {
+                    config.headers['Idempotency-Key'] = config.headers['Idempotency-Key'] || createRequestKey();
+                }
+                if (method !== 'get' && method !== 'head' && method !== 'options') {
+                    config.headers['X-Requested-With'] = 'XMLHttpRequest';
                 }
                 return config;
             },
@@ -31,14 +136,49 @@ class ApiClient {
         this.client.interceptors.response.use(
             (response) => response,
             (error: AxiosError) => {
-                if (error.response?.status === 401) {
-                    // Handle unauthorized
-                    localStorage.removeItem('auth_token');
+                const errorCode = (error.response?.data as { code?: string } | undefined)?.code;
+                if (error.response?.status === 401 && errorCode === 'SESSION_INVALID') {
+                    // Only an explicitly invalid or expired session should sign the
+                    // user out. A failed page request must not erase their session.
+                    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+                    sessionStorage.removeItem('user');
+                    sessionStorage.removeItem('company');
                     window.location.href = '/login';
                 }
                 return Promise.reject(error);
             }
         );
+    }
+
+    // Authentication
+    async signup(payload: { email: string; name: string; password: string; companyName: string; country: string }) {
+        const { data } = await this.client.post('/auth/signup', payload);
+        return data;
+    }
+
+    async login(payload: { email: string; password: string }) {
+        const { data } = await this.client.post('/auth/login', payload);
+        return data;
+    }
+
+    async getSession() {
+        const { data } = await this.client.get('/auth/session');
+        return data;
+    }
+
+    async verifyEmail(email: string) {
+        const { data } = await this.client.post('/auth/verify-email', { email });
+        return data;
+    }
+
+    async completeOnboarding(payload: { companyId: string; phone: string; address: string; businessType: string; monthlyVolume: string }) {
+        const { data } = await this.client.post('/auth/complete-onboarding', payload);
+        return data;
+    }
+
+    async logout() {
+        const { data } = await this.client.post('/auth/logout');
+        return data;
     }
 
     // Dashboard
@@ -70,6 +210,11 @@ class ApiClient {
 
     async createRemittance(remittanceData: any) {
         const { data } = await this.client.post('/remittance', remittanceData);
+        return data;
+    }
+
+    async getRemittanceQuote(payload: { amount: number; currency?: string; localCurrency: string }) {
+        const { data } = await this.client.post('/remittance/quote', payload);
         return data;
     }
 
@@ -188,6 +333,21 @@ class ApiClient {
 
     async releaseFunds(contractId: string, releaseData: any) {
         const { data } = await this.client.post(`/escrow/contracts/${contractId}/release`, releaseData);
+        return data;
+    }
+
+    async acceptContractBid(contractId: string, bidId: string) {
+        const { data } = await this.client.put(`/escrow/contracts/${contractId}/bids/${bidId}/accept`);
+        return data;
+    }
+
+    async rejectContractBid(contractId: string, bidId: string) {
+        const { data } = await this.client.put(`/escrow/contracts/${contractId}/bids/${bidId}/reject`);
+        return data;
+    }
+
+    async updateContractMilestone(contractId: string, milestoneId: string, payload: { status?: string; title?: string; description?: string; amount?: number; dueDate?: string }) {
+        const { data } = await this.client.put(`/escrow/contracts/${contractId}/milestones/${milestoneId}`, payload);
         return data;
     }
 
@@ -317,6 +477,62 @@ class ApiClient {
 
     async getUsageMetrics() {
         const { data } = await this.client.get('/settings/metrics');
+        return data;
+    }
+
+    // Crypto rails: signing stays in the user's injected wallet.
+    async getCryptoNetworks() {
+        const { data } = await this.client.get<{ networks: CryptoNetwork[]; mode: 'testnet' | 'live'; signing: 'external-wallet' }>('/crypto/networks');
+        return data;
+    }
+
+    async getCryptoWallets() {
+        const { data } = await this.client.get<CryptoWallet[]>('/crypto/wallets');
+        return data;
+    }
+
+    async createCryptoWalletChallenge(payload: { chainId: number; address: string }) {
+        const { data } = await this.client.post<{ id: string; message: string; expiresAt: string }>('/crypto/wallets/challenge', payload);
+        return data;
+    }
+
+    async verifyCryptoWallet(payload: { challengeId: string; signature: string }) {
+        const { data } = await this.client.post<CryptoWallet>('/crypto/wallets/verify', payload);
+        return data;
+    }
+
+    async getCryptoBalances(params: { chainId: number; address: string; asset?: string }) {
+        const { data } = await this.client.get<CryptoBalances>('/crypto/balances', { params });
+        return data;
+    }
+
+    async createCryptoPayment(payload: CreateCryptoPayment, idempotencyKey: string) {
+        const { data } = await this.client.post<CryptoPayment>('/crypto/payments', payload, { headers: { 'Idempotency-Key': idempotencyKey } });
+        return data;
+    }
+
+    async getCryptoPayments(params?: { limit?: number; cursor?: string }) {
+        const { data } = await this.client.get<{ items: CryptoPayment[]; nextCursor: string | null }>('/crypto/payments', { params });
+        return data;
+    }
+
+    async getCryptoPayment(id: string) {
+        const { data } = await this.client.get<CryptoPayment>(`/crypto/payments/${encodeURIComponent(id)}`);
+        return data;
+    }
+
+    async prepareCryptoPayment(id: string) {
+        const { data } = await this.client.post<PreparedCryptoPayment>(`/crypto/payments/${encodeURIComponent(id)}/prepare`);
+        return data;
+    }
+
+    async submitCryptoPayment(id: string, txHash: string, idempotencyKey: string) {
+        const { data } = await this.client.post<CryptoPayment>(`/crypto/payments/${encodeURIComponent(id)}/submit`, { txHash }, { headers: { 'Idempotency-Key': idempotencyKey } });
+        return data;
+    }
+
+    async reconcileCryptoPayment(id: string) {
+        const { data } = await this.client.post<CryptoPayment>(`/crypto/payments/${encodeURIComponent(id)}/reconcile`);
         return data;
     }
 }

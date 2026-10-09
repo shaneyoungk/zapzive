@@ -1,0 +1,41 @@
+<svg width="720" height="360" viewBox="0 0 720 360" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Zapzive operating model</title>
+  <desc id="desc">Four money movement workflows connect to a shared operating and control layer.</desc>
+  <defs>
+    <linearGradient id="jadeLine" x1="120" y1="72" x2="610" y2="286" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#087F5B"/>
+      <stop offset="1" stop-color="#11A879"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-30%" width="140%" height="160%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+  </defs>
+  <circle cx="360" cy="180" r="114" fill="#E8EEE4" opacity=".72"/>
+  <circle cx="360" cy="180" r="84" stroke="#B9D9CC" stroke-width="1.5"/>
+  <circle cx="360" cy="180" r="55" fill="#FFFDF8" stroke="#087F5B" stroke-width="2"/>
+  <circle cx="360" cy="180" r="28" fill="#E8F4EF"/>
+  <path d="M350 180H370M360 170V190" stroke="#087F5B" stroke-width="2" stroke-linecap="round"/>
+  <path d="M360 96C360 73 386 61 407 72M444 180C478 180 492 153 480 132M360 264C360 291 333 300 312 287M276 180C242 180 230 207 244 229" stroke="url(#jadeLine)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M407 72L401 84M407 72L394 75M480 132L467 131M480 132L474 143M312 287L319 275M312 287L325 284M244 229L257 230M244 229L250 218" stroke="#11A879" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <g>
+    <rect x="323" y="18" width="74" height="46" rx="13" fill="#FFFDF8" stroke="#CDD8C8"/>
+    <path d="M342 34H378M342 43H366" stroke="#087F5B" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="376" cy="44" r="3" fill="#11A879"/>
+  </g>
+  <g>
+    <rect x="506" y="157" width="82" height="46" rx="13" fill="#FFFDF8" stroke="#CDD8C8"/>
+    <path d="M526 173H567M526 183H552" stroke="#087F5B" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="565" cy="183" r="3" fill="#11A879"/>
+  </g>
+  <g>
+    <rect x="313" y="296" width="94" height="46" rx="13" fill="#FFFDF8" stroke="#CDD8C8"/>
+    <path d="M333 312H385M333 322H365" stroke="#087F5B" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="383" cy="322" r="3" fill="#11A879"/>
+  </g>
+  <g>
+    <rect x="132" y="157" width="82" height="46" rx="13" fill="#FFFDF8" stroke="#CDD8C8"/>
+    <path d="M152 173H193M152 183H178" stroke="#087F5B" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="191" cy="183" r="3" fill="#11A879"/>
+  </g>
+  <circle cx="360" cy="180" r="130" stroke="#11A879" stroke-opacity=".12" stroke-width="18" filter="url(#soft)"/>
+</svg>

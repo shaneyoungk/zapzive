@@ -13,6 +13,7 @@ import NotFound from "./pages/NotFound";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Pricing from "./pages/Pricing";
+import Legal from "./pages/Legal";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import Overview from "./pages/dashboard/Overview";
 import Payroll from "./pages/dashboard/Payroll";
@@ -24,6 +25,7 @@ import ContractBid from "./pages/public/ContractBid";
 import Remittance from "./pages/dashboard/Remittance";
 import Treasury from "./pages/dashboard/Treasury";
 import TreasuryTransfer from "./pages/dashboard/TreasuryTransfer";
+import CryptoPayments from "./pages/dashboard/CryptoPayments";
 import Analytics from "./pages/dashboard/Analytics";
 import Compliance from "./pages/dashboard/Compliance";
 import Agents from "./pages/dashboard/Agents";
@@ -64,6 +66,8 @@ import SettingsWebhooks from "@/pages/docs/api/settings/Webhooks";
 import TeamAccess from "@/pages/docs/api/settings/TeamAccess";
 import PaymentsConcept from "@/pages/docs/concepts/Payments";
 import EscrowConcept from "@/pages/docs/concepts/Escrow";
+import Examples from "@/pages/docs/Examples";
+import ExampleDetail from "@/pages/docs/ExampleDetail";
 
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -77,8 +81,8 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <CookieBanner />
         <BrowserRouter>
+          <CookieBanner />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/blog" element={<Blog />} />
@@ -89,6 +93,9 @@ const App = () => (
             <Route path="/signup" element={<Signup />} />
             <Route path="/login" element={<Login />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/terms" element={<Legal />} />
+            <Route path="/privacy" element={<Legal />} />
+            <Route path="/risk-disclosure" element={<Legal />} />
             <Route path="/p/contract/:id" element={<ContractBid />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
 
@@ -106,10 +113,14 @@ const App = () => (
               <Route path="payroll/batches/:id" element={<PayrollBatchDetail />} />
               <Route path="payroll/workers/:id" element={<WorkerDetail />} />
               <Route path="escrow" element={<Escrow />} />
+              <Route path="escrow/new" element={<Escrow />} />
               <Route path="escrow/:id" element={<ContractDetail />} />
               <Route path="remittance" element={<Remittance />} />
+              <Route path="remittance/send" element={<Remittance />} />
               <Route path="treasury" element={<Treasury />} />
+              <Route path="treasury/swap" element={<Treasury />} />
               <Route path="treasury/transfer" element={<TreasuryTransfer />} />
+              <Route path="crypto" element={<CryptoPayments />} />
               <Route path="analytics" element={<Analytics />} />
               <Route path="compliance" element={<Compliance />} />
               <Route path="agents" element={<Agents />} />
@@ -127,6 +138,8 @@ const App = () => (
               <Route path="webhooks" element={<Webhooks />} />
               <Route path="go-live" element={<GoLive />} />
               <Route path="solutions/enterprise" element={<EnterpriseExample />} />
+              <Route path="examples" element={<Examples />} />
+              <Route path="examples/:slug" element={<ExampleDetail />} />
               <Route path="api" element={<ApiReference />} />
 
               {/* Deep-Dive API Routes */}
