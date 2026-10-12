@@ -10,16 +10,13 @@ const startingPoints = [
 
 export function CTASection() {
   return (
-    <section className="border-b border-[#d4d8cf] bg-[#e9eee7] px-6 py-24 sm:py-32">
-      <div className="homepage-frame grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,.85fr)] lg:gap-20">
+    <section className="home-section border-b border-[#d4d8cf] bg-[#e9eee7]">
+      <div className="homepage-frame grid gap-12 lg:grid-cols-2 lg:gap-16">
         <div>
           <p className="homepage-eyebrow">Start in test mode</p>
-          <h2 className="homepage-title">
-            Set up the workflow first.<br />
-            <em>Use a supported rail when you are ready.</em>
-          </h2>
+          <h2 className="homepage-title">Run your first payout <em>in the sandbox today.</em></h2>
           <p className="homepage-copy">
-            Create test payments, review the complete record, and learn the controls your team needs before you move to a supported connected crypto rail.
+            Load the sample payout scenario, approve a run, resolve a failed payout and reconcile it, in about ten minutes. No live funds move.
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <Link to="/signup">
@@ -35,8 +32,8 @@ export function CTASection() {
           </div>
         </div>
 
-        <div className="border-y border-[#bdc8bd] lg:border-l lg:border-y-0 lg:pl-12">
-          <p className="pt-6 font-mono text-[10px] font-semibold uppercase tracking-[.12em] text-[#087f5b] lg:pt-0">Your first three steps</p>
+        <div className="border-t border-[#bdc8bd] lg:border-t-0">
+          <p className="homepage-eyebrow pt-6 lg:pt-0">Your first three steps</p>
           <div className="mt-5">
             {startingPoints.map(([number, title, detail]) => (
               <div key={number} className="grid grid-cols-[40px_minmax(0,1fr)] gap-3 border-t border-[#cbd4c9] py-5 first:border-t-0 first:pt-0">
@@ -49,7 +46,7 @@ export function CTASection() {
             ))}
           </div>
           <div className="flex items-center gap-2 border-t border-[#bdc8bd] py-5 text-sm font-semibold text-[#087f5b]">
-            <Check size={16} /> Test mode and supported crypto rails
+            <Check size={16} /> Sandbox with a simulated provider
           </div>
         </div>
       </div>

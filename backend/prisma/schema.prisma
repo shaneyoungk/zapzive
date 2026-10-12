@@ -55,6 +55,11 @@ model Company {
   cryptoWallets   CryptoWallet[]
   cryptoChallenges CryptoWalletChallenge[]
   cryptoPayments  CryptoPayment[]
+  payoutRuns      PayoutRun[]
+  movements       Movement[]
+  approvals       Approval[]
+  approvalPolicy  ApprovalPolicy?
+  fundingAccounts FundingAccount[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
@@ -147,6 +152,16 @@ model Worker {
   totalPaid   Float            @default(0)
   avatar      String?
   payments    PayrollPayment[]
+  // Payout-operations recipient fields. The table keeps its storage name; the product calls these "recipients".
+  recipientType    String    @default("contractor") // contractor, vendor, creator, freelancer, supplier, business
+  status           String    @default("active") // active, archived
+  payoutMethod     String? // mpesa, bank, mobile_money, usdc_wallet
+  payoutCurrency   String?
+  payoutDetails    String? // JSON: { phone } | { bankName, accountNumber, bankCode } | { walletAddress }
+  detailsUpdatedAt DateTime?
+  verifiedAt       DateTime?
+  isSample         Boolean   @default(false)
+  movements        Movement[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
@@ -376,8 +391,9 @@ model AuditEvent {
   @@index([companyId, entityType, entityId])
 }
 
-// On-chain records use integer base-unit strings. Sandbox records reuse the
-// company Asset ledger explicitly and are marked by the Zapzive Sandbox chain.
+// On-chain records use integer base-unit strings. Crypto wallets are verified
+// external addresses; balances are read from the selected network RPC and are
+// never copied into the company Asset ledger.
 model CryptoWallet {
   id        String   @id @default(uuid())
   companyId String
@@ -388,7 +404,8 @@ model CryptoWallet {
   createdAt DateTime @default(now())
   payments  CryptoPayment[]
 
-  @@unique([chainId, address])
+  // Ownership is proven per workspace, so one wallet may be linked to several.
+  @@unique([companyId, chainId, address])
   @@index([companyId])
 }
 
@@ -483,4 +500,138 @@ model CryptoJournalEntry {
   journal      CryptoJournal @relation(fields: [journalId], references: [id])
   account      String
   amountUnits  String // signed integer; sum across a journal must be zero
+}
+
+// ---------------------------------------------------------------------------
+// Payout operations. All money is stored as integer minor units.
+
+model PayoutRun {
+  id                String     @id @default(uuid())
+  companyId         String
+  company           Company    @relation(fields: [companyId], references: [id])
+  reference         String // PR-1001
+  name              String
+  purpose           String?
+  scheduledFor      DateTime?
+  fundingCurrency   String     @default("USD")
+  status            String     @default("draft") // draft, needs_correction, ready, awaiting_approval, approved, processing, completed, completed_with_failures, rejected, cancelled
+  requiredApprovals Int        @default(0)
+  policySummary     String?
+  createdById       String
+  createdByName     String
+  submittedById     String?
+  submittedAt       DateTime?
+  approvedAt        DateTime?
+  executedAt        DateTime?
+  completedAt       DateTime?
+  reconciledAt      DateTime?
+  reconciledById    String?
+  cancelledAt       DateTime?
+  isSample          Boolean    @default(false)
+  movements         Movement[]
+  approvals         Approval[]
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@unique([companyId, reference])
+  @@index([companyId, status])
+}
+
+model Movement {
+  id                   String     @id @default(uuid())
+  companyId            String
+  company              Company    @relation(fields: [companyId], references: [id])
+  runId                String?
+  run                  PayoutRun? @relation(fields: [runId], references: [id])
+  reference            String // MV-XXXXXXXX internal reference
+  recipientId          String?
+  recipient            Worker?    @relation(fields: [recipientId], references: [id])
+  recipientName        String
+  externalReference    String?
+  amountMinor          Int // amount the recipient receives, in currency
+  currency             String
+  payoutMethod         String
+  destination          String? // masked snapshot, e.g. "M-Pesa · +254 7•• ••• 123"
+  country              String?
+  sourceCurrency       String     @default("USD")
+  sourceAmountMinor    Int? // cost in the funding currency, including fee
+  feeMinor             Int? // in the funding currency
+  fxRate               String? // destination units per 1 source unit, decimal string
+  quotedAt             DateTime?
+  quoteExpiresAt       DateTime?
+  provider             String?
+  rail                 String?
+  providerReference    String?
+  providerPayload      String? // JSON snapshot of the payout details actually sent to the provider
+  state                String     @default("draft")
+  validationIssues     String? // JSON array of { code, severity, message }
+  acknowledgedIssues   String? // JSON array of acknowledged warning codes
+  requiresApproval     Boolean    @default(false)
+  exceptionType        String?
+  failureReason        String?
+  holdReason           String?
+  attempt              Int        @default(1)
+  deliveredAmountMinor Int?
+  providerReadyAt      DateTime?
+  submittedAt          DateTime?
+  deliveredAt          DateTime?
+  failedAt             DateTime?
+  resolvedAt           DateTime?
+  requestedById        String
+  isSample             Boolean    @default(false)
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  @@unique([companyId, reference])
+  @@index([companyId, state])
+  @@index([runId])
+  @@index([recipientId])
+}
+
+model Approval {
+  id           String    @id @default(uuid())
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id])
+  runId        String
+  run          PayoutRun @relation(fields: [runId], references: [id])
+  actorId      String
+  actorName    String
+  decision     String // approved, rejected
+  comment      String?
+  selfApproval Boolean   @default(false)
+  beforeStatus String
+  afterStatus  String
+  requestId    String?
+  createdAt    DateTime  @default(now())
+
+  @@index([runId])
+}
+
+model ApprovalPolicy {
+  id                             String   @id @default(uuid())
+  companyId                      String   @unique
+  company                        Company  @relation(fields: [companyId], references: [id])
+  currency                       String   @default("KES")
+  singleApprovalAboveMinor       Int      @default(10000000) // KES 100,000
+  dualApprovalAboveMinor         Int      @default(1000000000) // KES 10,000,000
+  newRecipientRequiresApproval   Boolean  @default(true)
+  changedDetailsRequiresApproval Boolean  @default(true)
+  allowSelfApproval              Boolean  @default(true)
+  updatedById                    String?
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+}
+
+model FundingAccount {
+  id             String   @id @default(uuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id])
+  currency       String   @default("USD")
+  availableMinor Int      @default(0)
+  reservedMinor  Int      @default(0)
+  isSandbox      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([companyId, currency])
 }

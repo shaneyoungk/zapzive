@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authMiddleware, AuthRequest } from '../middleware/auth.middleware';
 import { ApiError, parseBoundedLimit, sendApiError } from '../lib/security';
+import { getOnchainPortfolio } from '../crypto/portfolio';
 
 const router = Router();
 
@@ -12,22 +13,22 @@ router.use(authMiddleware as any);
 router.get('/stats', async (req: AuthRequest, res: Response) => {
     try {
         const [
-            totalBalance,
+            portfolio,
             transactionCount,
             workerCount,
             agentCount
         ] = await Promise.all([
-            prisma.asset.aggregate({
-                where: { companyId: req.companyId },
-                _sum: { usdValue: true }
-            }),
+            getOnchainPortfolio(req.companyId!),
             prisma.transaction.count({ where: { companyId: req.companyId } }),
             prisma.worker.count({ where: { companyId: req.companyId } }),
             prisma.agent.count({ where: { companyId: req.companyId, status: 'active' } })
         ]);
 
         res.json({
-            totalBalance: totalBalance._sum.usdValue || 0,
+            totalBalance: null,
+            balanceSource: 'onchain',
+            onchainAssetCount: portfolio.items.length,
+            onchainNetworkErrors: portfolio.networkErrors,
             monthlyVolume: (await prisma.transaction.aggregate({
                 _sum: { amount: true },
                 where: {
@@ -48,19 +49,14 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
 // GET /api/dashboard/balance - Get balance breakdown
 router.get('/balance', async (req: AuthRequest, res: Response) => {
     try {
-        const assets = await prisma.asset.findMany({
-            where: { companyId: req.companyId }
-        });
-
-        if (assets.length === 0) {
-            return res.json([]);
-        }
-
-        const balanceBreakdown = assets.map(asset => ({
-            label: asset.symbol,
-            value: asset.usdValue,
+        const portfolio = await getOnchainPortfolio(req.companyId!);
+        const balanceBreakdown = portfolio.items.map(asset => ({
+            label: asset.symbol + ' on ' + asset.network,
+            value: null,
+            amount: asset.amount,
             color: asset.color,
-            bgColor: asset.color.replace('text-', 'bg-')
+            bgColor: asset.color,
+            source: asset.source,
         }));
 
         res.json(balanceBreakdown);

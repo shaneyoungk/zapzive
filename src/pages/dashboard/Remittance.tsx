@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useLocation } from "react-router-dom";
 import {
     Send,
     Plus,
@@ -19,7 +20,8 @@ import {
 import { Button } from "@/components/ui/button";
 import MetricCard from "@/components/dashboard/MetricCard";
 import InfoTooltip from "@/components/dashboard/InfoTooltip";
-import StatusBadge from "@/components/dashboard/StatusBadge";
+import StatusBadge, { toStatusType } from "@/components/dashboard/StatusBadge";
+import AssetIcon, { CurrencyFlag } from "@/components/dashboard/AssetIcon";
 import DetailPanel from "@/components/dashboard/DetailPanel";
 import { motion } from "framer-motion";
 import { useRemittances } from "@/hooks/use-remittance";
@@ -68,7 +70,8 @@ export default function Remittance() {
     const [statusFilter, setStatusFilter] = useState<string>("all");
 
     // Modal state
-    const [isSendMoneyOpen, setIsSendMoneyOpen] = useState(false);
+    const { pathname } = useLocation();
+    const [isSendMoneyOpen, setIsSendMoneyOpen] = useState(() => pathname.endsWith("/send"));
 
     const { data: allRemittances = [], isLoading } = useRemittances();
 
@@ -178,14 +181,14 @@ export default function Remittance() {
                                                     <h4 className="font-semibold text-foreground text-sm">
                                                         {remittance.sender} → {getRecipientName(remittance)}
                                                     </h4>
-                                                    <StatusBadge status={remittance.status} />
+                                                    <StatusBadge status={toStatusType(remittance.status)} />
                                                 </div>
                                                 <p className="text-xs text-muted-foreground mb-2">
                                                     {remittance.id} • {remittance.createdDate}
                                                 </p>
                                                 <div className="flex items-center gap-4 text-xs">
                                                     <div className="flex items-center gap-1.5 text-muted-foreground">
-                                                        <MapPin className="w-3.5 h-3.5" />
+                                                        <CurrencyFlag code={remittance.localCurrency || remittance.recipientCountry} size="xs" className="h-4 w-4" />
                                                         <span>{remittance.recipientCountry}</span>
                                                     </div>
                                                     <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -201,7 +204,7 @@ export default function Remittance() {
                                                 ${(remittance.amount || 0).toLocaleString()}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                ${(remittance.localAmount || 0).toLocaleString()} {remittance.localCurrency}
+                                                {(remittance.localAmount || 0).toLocaleString()} {remittance.localCurrency}
                                             </p>
                                             <p className="text-xs text-muted-foreground mt-1">Fee: ${remittance.fee}</p>
                                         </div>
@@ -264,10 +267,11 @@ export default function Remittance() {
                                 ${(selectedRemittance.amount || 0).toLocaleString()}
                             </h3>
                             <div className="flex items-center justify-center gap-2 text-sm text-zinc-400 mb-3">
-                                <span>{selectedRemittance.currency}</span>
+                                <span className="inline-flex items-center gap-1.5"><AssetIcon symbol={selectedRemittance.currency || "USDC"} size="xs" />{selectedRemittance.currency}</span>
                                 <ArrowRight className="w-4 h-4" />
-                                <span>
-                                    ${(selectedRemittance.localAmount || 0).toLocaleString()}{" "}
+                                <span className="inline-flex items-center gap-1.5">
+                                    <CurrencyFlag code={selectedRemittance.localCurrency} size="xs" />
+                                    {(selectedRemittance.localAmount || 0).toLocaleString()}{" "}
                                     {selectedRemittance.localCurrency}
                                 </span>
                             </div>

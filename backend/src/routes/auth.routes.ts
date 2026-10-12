@@ -109,48 +109,8 @@ router.post('/signup', async (req: Request, res: Response) => {
                     companyId: createdCompany.id
                 }
             });
-            // Seed a minimal sandbox workspace in the same transaction as the
-            // account so a partial signup cannot create an unusable company.
-            await tx.worker.createMany({
-                data: [
-                    {
-                        name: 'Alex Rivera',
-                        role: 'Senior Engineer',
-                        email: `alex.${createdCompany.id}@example.com`,
-                        phone: '+1 555-0101',
-                        country: 'United States',
-                        wallet: '0x71C7...f9a1',
-                        kycStatus: 'verified',
-                        totalPaid: 12500,
-                        companyId: createdCompany.id
-                    },
-                    {
-                        name: 'Sarah Chen',
-                        role: 'Product Designer',
-                        email: `sarah.${createdCompany.id}@example.com`,
-                        phone: '+1 555-0102',
-                        country: 'Singapore',
-                        wallet: '0x3aB2...eD44',
-                        kycStatus: 'verified',
-                        totalPaid: 8400,
-                        companyId: createdCompany.id
-                    }
-                ]
-            });
-            await tx.asset.createMany({
-                data: [
-                    // These are simulated balances for the test workspace. They
-                    // intentionally live in the shared Asset ledger so treasury,
-                    // overview, analytics, and the sandbox payment rail agree.
-                    { companyId: createdCompany.id, symbol: 'USDC', name: 'USD Coin', balance: 100000, usdValue: 100000, change24h: 0, chain: 'Zapzive Sandbox', color: '#2775CA', icon: '/icons/usdc.png' },
-                    { companyId: createdCompany.id, symbol: 'USDT', name: 'Tether', balance: 100000, usdValue: 100000, change24h: 0, chain: 'Zapzive Sandbox', color: '#26A17B', icon: '/icons/tether.png' },
-                    { companyId: createdCompany.id, symbol: 'ETH', name: 'Ethereum', balance: 25, usdValue: 62500, change24h: 0, chain: 'Zapzive Sandbox', color: '#627EEA', icon: '/icons/ethereum.png' },
-                    { companyId: createdCompany.id, symbol: 'MATIC', name: 'Polygon', balance: 5000, usdValue: 2500, change24h: 0, chain: 'Zapzive Sandbox', color: '#8247E5', icon: '/icons/polygon.png' },
-                    { companyId: createdCompany.id, symbol: 'DAI', name: 'Dai', balance: 50000, usdValue: 50000, change24h: 0, chain: 'Zapzive Sandbox', color: '#F5AC37', icon: '/icons/dai.svg' },
-                    { companyId: createdCompany.id, symbol: 'BTC', name: 'Bitcoin', balance: 1, usdValue: 60000, change24h: 0, chain: 'Zapzive Sandbox', color: '#F7931A', icon: '/icons/bitcoin.svg' },
-                    { companyId: createdCompany.id, symbol: 'SOL', name: 'Solana', balance: 100, usdValue: 15000, change24h: 0, chain: 'Zapzive Sandbox', color: '#14F195', icon: '/icons/solana.svg' }
-                ]
-            });
+            // New workspaces start empty. A labelled sample payout scenario can be
+            // loaded from Home (sandbox only); nothing is fabricated at signup.
             return { company: createdCompany, user: createdUser };
         });
 
@@ -163,7 +123,7 @@ router.post('/signup', async (req: Request, res: Response) => {
         });
         res.status(201).json({
             success: true,
-            message: 'Sandbox account created successfully',
+            message: 'Account created successfully',
             user: {
                 id: user.id,
                 email: user.email,

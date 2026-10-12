@@ -207,7 +207,7 @@ export default function ContractBid() {
                     {/* Header */}
                     <div className="space-y-6">
                         <div className="flex items-center gap-4">
-                            <div className="rounded-[10px] border border-[#2f5e50] bg-[#183a30] px-3 py-2"><ZapziveLogo size="sm" /></div>
+                            <ZapziveLogo size="sm" />
                             <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-900/50 border border-white/[0.03] backdrop-blur-sm self-center">
                                 <Vault className="w-3.5 h-3.5 text-zinc-400" />
                                 <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Secured Escrow</span>
@@ -315,7 +315,7 @@ export default function ContractBid() {
                 <div className="space-y-6">
                     {/* zapzive Branding */}
                     <div className="flex items-center gap-4">
-                        <div className="rounded-[10px] border border-[#2f5e50] bg-[#183a30] px-3 py-2"><ZapziveLogo size="sm" /></div>
+                        <ZapziveLogo size="sm" />
                         <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-zinc-900/50 border border-white/[0.03] backdrop-blur-sm self-center">
                             <Vault className="w-3.5 h-3.5 text-zinc-400" />
                             <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Secured Escrow</span>

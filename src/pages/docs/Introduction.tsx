@@ -9,10 +9,10 @@ const pillars = [
 ];
 
 const flow = [
-  { icon: ShieldCheck, title: "Onboard", copy: "Verify businesses and recipients" },
-  { icon: Building2, title: "Fund", copy: "Allocate treasury balances" },
-  { icon: Layers3, title: "Execute", copy: "Run payouts and payroll" },
-  { icon: Zap, title: "Reconcile", copy: "Sync status and reporting" },
+  { icon: Building2, title: "Prepare", copy: "Recipients and payout runs" },
+  { icon: ShieldCheck, title: "Approve", copy: "Policy-driven approvals" },
+  { icon: Layers3, title: "Send", copy: "Provider execution and state" },
+  { icon: Zap, title: "Reconcile", copy: "Expected versus delivered" },
 ];
 
 export default function Introduction() {
@@ -20,8 +20,8 @@ export default function Introduction() {
     <DocCallout type="info" title="Sandbox first">These guides describe the current Zapzive sandbox. Test balances, quotes, recipients, and settlement records are simulated; live banking, custody, blockchain, FX, and compliance-provider connections are not enabled.</DocCallout>
     <section className="border-b border-[#d9d6cd] pb-16">
       <p className="mono-label mb-6 text-[#087f5b]">Developer platform · Sandbox</p>
-      <h1 className="max-w-4xl text-5xl font-semibold leading-[.96] tracking-[-.07em] md:text-7xl">Build a clear<br /><em className="text-[#11a879]">money movement flow.</em></h1>
-      <p className="mt-8 max-w-3xl text-lg leading-8 text-[#575750]">Use one consistent model for payroll, remittance, treasury, and escrow workflows. Every guide shows the request, state, response, and control that comes next.</p>
+      <h1 className="max-w-4xl text-5xl font-semibold leading-[.96] tracking-[-.07em] md:text-7xl">Automate your<br /><em className="text-[#11a879]">payout runs.</em></h1>
+      <p className="mt-8 max-w-3xl text-lg leading-8 text-[#575750]">Create recipients and payout runs, validate them, route them through approval, and reconcile the result, with the same states your finance team sees in the dashboard. Payouts go to M-Pesa, mobile money, bank accounts or USDC wallets, and stablecoin settlement is planned; the API never asks you to handle keys, gas or networks. Start with the payout operations API guide.</p>
       <div className="mt-9 flex flex-col gap-3 sm:flex-row"><Link to="/docs/quickstart" className="inline-flex h-12 items-center justify-center gap-3 rounded-full bg-[#20211e] px-6 text-sm font-semibold text-[#f5f3ee] transition hover:bg-[#11a879] hover:text-[#20211e]">Start integrating <ArrowRight size={16} /></Link><Link to="/docs/api" className="inline-flex h-12 items-center justify-center rounded-full border border-[#b9b7ae] px-6 text-sm font-semibold text-[#20211e] transition hover:border-[#20211e]">Explore API reference</Link></div>
     </section>
 

@@ -169,6 +169,40 @@
   .developer-console__toolbar { padding-inline: 1rem; }
   .developer-console__response { padding: 1.25rem; }
 }
+
+/* Homepage only (.home on the page root): one calmer type scale, one section
+   header pattern and straight, top-aligned columns. Other public pages keep
+   the rules above. */
+.home .homepage-title { max-width: 620px; font-size: clamp(2.1rem, 3.6vw, 3.1rem); letter-spacing: -.05em; line-height: 1.05; }
+.home .homepage-copy { max-width: 540px; font-size: 1.0625rem; line-height: 1.7; }
+.home .homepage-eyebrow { font-size: 10.5px; }
+.home-head__row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 1.25rem 4rem; margin-top: 1.25rem; }
+.home-head__row > .homepage-title, .home-head__row .homepage-copy { margin-top: 0; }
+.home-head__aside { display: grid; gap: 1.1rem; padding-top: .35rem; }
+.home-head__row > .homepage-copy { padding-top: .35rem; }
+.home-section { padding: clamp(5rem, 9vw, 7.5rem) 1.5rem; }
+.home-section__body { margin-top: clamp(2.75rem, 5vw, 3.75rem); }
+
+
+/* Workflow cards: the same rows line up across each pair of cards. */
+.home .services-card__corner { display: none; }
+.home .workflow-service-card__copy h3 { max-width: 440px; font-size: clamp(1.4rem, 1.9vw, 1.7rem); letter-spacing: -.045em; line-height: 1.12; }
+@supports (grid-template-rows: subgrid) {
+  .home .workflow-services-grid { grid-auto-rows: auto; }
+  .home .workflow-service-card { display: grid; min-height: 0; grid-row: span 4; grid-template-rows: subgrid; row-gap: 0; }
+  .home .workflow-service-card__copy { margin-top: 32px; }
+  .home .workflow-service-card__sample { display: flex; flex-direction: column; margin-top: 0; padding-top: 28px; }
+  .home .workflow-service-card__sample .workflow-preview { flex: 1; }
+  .home .workflow-service-card__link { align-self: start; }
+}
+
+@media (max-width: 900px) {
+  .home-head__row { grid-template-columns: minmax(0, 1fr); }
+  .home-head__aside, .home-head__row > .homepage-copy { padding-top: 0; }
+}
+@media (max-width: 700px) {
+  .home .homepage-title { font-size: clamp(2rem, 8.6vw, 2.6rem); }
+}
 .metric-rail { padding: 24px 0; border-right: 1px solid #d9d6cd; }
 .metric-rail:not(:first-child) { padding-left: 28px; }
 .metric-rail:last-child { border-right: 0; }
@@ -276,7 +310,7 @@
 /* Authentication is a focused task, not a detached dark product. */
 .auth-page { position: relative; background: radial-gradient(circle at 50% 0%, rgba(17,168,121,.12), transparent 30%), #f5f3ee !important; }
 .auth-page .premium-card { border-radius: 16px; background: #fffdf8 !important; box-shadow: 0 18px 42px rgba(32,33,30,.07) !important; }
-.auth-brand { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; border: 1px solid #2f5e50; border-radius: 10px; background: #183a30; padding: .3rem .85rem; }
+.auth-brand { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; border-radius: 10px; padding: .3rem .25rem; }
 .auth-page .text-zinc-300 { color: #20211e !important; }
 .auth-page .text-zinc-400 { color: #575750 !important; }
 .auth-page .text-zinc-500 { color: #77766e !important; }
@@ -324,8 +358,8 @@
 .dashboard-active [role="dialog"] .border-zinc-700, .dashboard-active [role="dialog"] .border-zinc-800 { border-color: #d9d6cd !important; }
 .dashboard-active [role="dialog"] input, .dashboard-active [role="dialog"] textarea, .dashboard-active [role="dialog"] select { border-color: #d9d6cd !important; background: #fffdf8 !important; color: #20211e !important; }
 .dashboard-eyebrow { margin-bottom: 2px; color: #087f5b; font: 9px 'IBM Plex Mono', monospace; letter-spacing: .13em; text-transform: uppercase; }
-.dashboard-icon { display: inline-flex; flex: none; align-items: center; justify-content: center; border: 1px solid #cdd8c8; border-radius: 10px; background: #e8eee4; color: #087f5b; }
-.dashboard-test-notice { border: 1px solid #cdd8c8; border-radius: 16px; background: #e8eee4; padding: 14px 16px; }
+.dashboard-icon { display: inline-flex; flex: none; align-items: center; justify-content: center; border: 1px solid #d6e9df; border-radius: 10px; background: #edf6f1; color: hsl(var(--primary)); }
+.dashboard-test-notice { border: 1px solid #e7e4dc; border-radius: 16px; background: #ffffff; padding: 14px 16px; }
 [data-dashboard] main { background: #f5f3ee !important; }
 [data-dashboard-content] > * { width: 100% !important; max-width: none !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; color: #20211e !important; }
 [data-dashboard-content].animate-fade-in, [data-dashboard-content] .animate-fade-in { animation: none !important; opacity: 1 !important; }
@@ -494,6 +528,80 @@
     padding-left: 0 !important;
   }
 }
+
+/* Dashboard polish: one surface, one border weight, one radius scale.
+   Cards sit on the warm canvas with a hairline and a near-invisible lift so
+   dense financial data reads as calm, not boxed in. */
+[data-dashboard-content] .premium-card {
+  border-color: #e3e0d7 !important;
+  border-radius: 16px;
+  background: #fffefa !important;
+  box-shadow: 0 1px 2px rgba(24, 26, 20, .04), 0 0 0 0 transparent !important;
+}
+[data-dashboard-content] .premium-card:hover { border-color: #d6d3c9 !important; }
+[data-dashboard-content] .card-header { min-height: 0; padding: 18px 20px 16px; border-bottom-color: #ece9e1; }
+[data-dashboard-content] .card-header h2 { font-size: 15px !important; letter-spacing: -.02em; line-height: 1.3; margin-top: 0 !important; }
+.dashboard-eyebrow { color: #0b6b4f; font: 500 10px/1.4 'IBM Plex Mono', monospace; letter-spacing: .12em; }
+[data-dashboard-content] th {
+  height: 40px; color: #8a897f !important;
+  font: 600 11px/1 'Manrope', sans-serif !important; letter-spacing: .02em !important; text-transform: none;
+  white-space: nowrap; border-bottom: 1px solid #ece9e1;
+}
+[data-dashboard-content] thead, [data-dashboard-content] thead.bg-\[\#161616\] { background: #faf8f3 !important; }
+[data-dashboard-content] tbody tr:hover { background: #faf8f2 !important; }
+[data-dashboard-content] .font-mono, [data-dashboard-content] .tabular-nums { font-variant-numeric: tabular-nums; }
+[data-dashboard] :focus-visible { outline: 2px solid #11a879; outline-offset: 2px; }
+/* Native selects (any left outside the shared Select component) get real padding and a chevron. */
+.dashboard-active select:not([multiple]) {
+  appearance: none; min-height: 44px; padding: 0 40px 0 14px !important; cursor: pointer; font-size: 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a897f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important; background-position: right 14px center !important; background-size: 16px !important;
+}
+
+/* Dark brand panels inside page content. The legacy light-theme overrides above
+   force headings and .text-white to ink, so dark surfaces opt back out here. */
+[data-dashboard-content] .dash-on-dark { color: #f7f5ef !important; }
+[data-dashboard-content] .dash-on-dark :is(h1, h2, h3, h4, .text-white) { color: #ffffff !important; }
+.dash-brand-surface {
+  background-color: #0f2c24;
+  background-image: linear-gradient(135deg, #15402f 0%, #123a2f 100%);
+}
+
+.dash-mint-surface { background-color: #e4f3ea; background-image: linear-gradient(120deg, #eaf6ef 0%, #dff1e7 50%, #d2ebde 100%); }
+
+/* Scrollbars stay functional (wheel, trackpad, touch, keyboard) but are not drawn in the dashboard. */
+.dash-no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.dash-no-scrollbar::-webkit-scrollbar { display: none; }
+html:has(body.dashboard-active) { scrollbar-width: none; }
+html:has(body.dashboard-active)::-webkit-scrollbar, body.dashboard-active::-webkit-scrollbar { display: none; }
+
+/* Safety net: leftover dark-theme translucent fills (e.g. bg-[#0A0A0A]/40, bg-zinc-800/50)
+   read as muddy grey on the light canvas. Pages should not use them; if one slips through
+   it renders as a quiet surface instead. */
+[data-dashboard-content] [class*="bg-[#0A0A0A]/"], [data-dashboard-content] [class*="bg-[#0a0a0a]/"],
+[data-dashboard-content] [class*="bg-zinc-800/"], [data-dashboard-content] [class*="bg-zinc-900/"],
+[data-dashboard-content] [class*="bg-black/"] { background: #fffefa !important; border-color: #e3e0d7 !important; backdrop-filter: none !important; }
+[data-dashboard-content] .bg-zinc-800, [data-dashboard-content] .bg-zinc-700, [data-dashboard-content] .bg-black { background: #f4f2ec !important; color: #1b1c19 !important; }
+
+@media (max-width: 640px) {
+  .dash-kpi-value { font-size: 21px; }
+  .dash-title { font-size: 22px; }
+}
+
+/* Dashboard building blocks */
+.dash-title { color: #1b1c19; font-size: 26px; font-weight: 700; letter-spacing: -.045em; line-height: 1.1; }
+.dash-subtle { color: #74736b; }
+.dash-kpi-value { color: #1b1c19; font-size: 26px; font-weight: 650; letter-spacing: -.045em; line-height: 1; font-variant-numeric: tabular-nums; }
+.dash-hero-value { color: #1b1c19; font-size: clamp(34px, 4.2vw, 46px); font-weight: 700; letter-spacing: -.055em; line-height: 1; font-variant-numeric: tabular-nums; }
+.dash-chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 9px; font-size: 11.5px; font-weight: 600; line-height: 16px; white-space: nowrap; }
+.dash-seg { display: inline-flex; gap: 2px; border-radius: 10px; background: #efede6; padding: 3px; }
+.dash-seg button { height: 28px; border-radius: 8px; padding: 0 11px; color: #6c6b63; font-size: 12px; font-weight: 600; transition: background .15s ease, color .15s ease, box-shadow .15s ease; }
+.dash-seg button:hover { color: #1b1c19; }
+.dash-seg button[aria-pressed="true"] { background: #fffefa; color: #1b1c19; box-shadow: 0 1px 2px rgba(24,26,20,.08), 0 0 0 1px rgba(24,26,20,.04); }
+.dash-row-link { display: flex; width: 100%; align-items: center; gap: 12px; padding: 12px 20px; text-align: left; transition: background .15s ease; }
+.dash-row-link:hover { background: #faf8f2; }
+.dash-skeleton { border-radius: 8px; background: linear-gradient(90deg, #efede6 0%, #f7f5ef 50%, #efede6 100%); background-size: 200% 100%; animation: dash-shimmer 1.4s ease-in-out infinite; }
+@keyframes dash-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
 /* Docs workspace */
 .docs-content { width: 100%; min-width: 0; color: #20211e; overflow-x: clip; }

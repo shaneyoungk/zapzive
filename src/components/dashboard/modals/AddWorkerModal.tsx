@@ -18,6 +18,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useAddWorker } from "@/hooks/use-payroll";
+import { CurrencyFlag } from "@/components/dashboard/AssetIcon";
 import { Loader2 } from "lucide-react";
 
 interface AddWorkerModalProps {
@@ -121,19 +122,19 @@ export function AddWorkerModal({ isOpen, onClose }: AddWorkerModalProps) {
                         <Label htmlFor="country" className="text-muted-foreground font-semibold">Country</Label>
                         <Select
                             value={formData.country}
-                            onValueChange={(value) => setFormData({ ...formData, country: value })}
+                            onValueChange={(value) => { if (value) setFormData({ ...formData, country: value }); }}
                         >
-                            <SelectTrigger className="bg-muted/50 border-border focus:ring-emerald-500/20 outline-none">
+                            <SelectTrigger id="country">
                                 <SelectValue placeholder="Select country" />
                             </SelectTrigger>
-                            <SelectContent className="bg-card border-border text-foreground">
-                                <SelectItem value="USA">United States</SelectItem>
-                                <SelectItem value="UK">United Kingdom</SelectItem>
-                                <SelectItem value="Canada">Canada</SelectItem>
-                                <SelectItem value="Nigeria">Nigeria</SelectItem>
-                                <SelectItem value="Kenya">Kenya</SelectItem>
-                                <SelectItem value="Brazil">Brazil</SelectItem>
-                                <SelectItem value="India">India</SelectItem>
+                            <SelectContent>
+                                <SelectItem value="USA"><CurrencyFlag code="us" size="xs" />United States</SelectItem>
+                                <SelectItem value="UK"><CurrencyFlag code="gb" size="xs" />United Kingdom</SelectItem>
+                                <SelectItem value="Canada"><CurrencyFlag code="ca" size="xs" />Canada</SelectItem>
+                                <SelectItem value="Nigeria"><CurrencyFlag code="ng" size="xs" />Nigeria</SelectItem>
+                                <SelectItem value="Kenya"><CurrencyFlag code="ke" size="xs" />Kenya</SelectItem>
+                                <SelectItem value="Brazil"><CurrencyFlag code="br" size="xs" />Brazil</SelectItem>
+                                <SelectItem value="India"><CurrencyFlag code="in" size="xs" />India</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

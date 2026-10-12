@@ -1,203 +1,87 @@
-import { useState } from "react";
-import { Bell, X, CheckCheck, AlertCircle, Info, TrendingUp } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { AlertTriangle, Bell, CheckCircle2, CheckSquare, Scale, UserPlus, Wallet, type LucideIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { useActivity, useHome } from "@/hooks/use-payouts";
+import { describeEvent } from "@/lib/payout-format";
+import { formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
 
-interface Notification {
-    id: string;
-    type: "success" | "warning" | "info" | "alert";
-    title: string;
-    message: string;
-    timestamp: string;
-    read: boolean;
-    actionLabel?: string;
-    actionHref?: string;
-}
-
-const mockNotifications: Notification[] = [];
-/*
-    {
-        id: "1",
-        type: "success",
-        title: "Payroll Completed",
-        message: "Batch #204 processed successfully. 45 workers paid.",
-        timestamp: "5m ago",
-        read: false,
-    },
-    {
-        id: "2",
-        type: "warning",
-        title: "KYC Verification Pending",
-        message: "3 workers require KYC verification before next payroll.",
-        timestamp: "1h ago",
-        read: false,
-        actionLabel: "Review",
-        actionHref: "/dashboard/compliance",
-    },
-    {
-        id: "3",
-        type: "info",
-        title: "Escrow Milestone Released",
-        message: "Contract #ESC-1023 milestone 2 of 5 released.",
-        timestamp: "3h ago",
-        read: true,
-    },
-    {
-        id: "4",
-        type: "alert",
-        title: "High Gas Fees",
-        message: "Current gas price: 120 gwei. Consider delaying transactions.",
-        timestamp: "5h ago",
-        read: true,
-    },
-]; */
-
-const notificationIcons = {
-    success: CheckCheck,
-    warning: AlertCircle,
-    info: Info,
-    alert: TrendingUp,
+const ACTIONABLE_EVENTS = ["payout.failed", "payout.held", "payout_run.submitted", "payout_run.rejected", "payout_run.completed", "payout_run.completed_with_failures", "payout_run.approved", "recipient.payout_details_changed"];
+const KIND_ICONS: Record<string, { icon: LucideIcon; tone: string }> = {
+    approval: { icon: CheckSquare, tone: "bg-[#fdf4e3] text-[#8a5a0b]" },
+    failed: { icon: AlertTriangle, tone: "bg-[#fbecea] text-[#b2392f]" },
+    details_changed: { icon: UserPlus, tone: "bg-[#fdf4e3] text-[#8a5a0b]" },
+    correction: { icon: AlertTriangle, tone: "bg-[#fbecea] text-[#b2392f]" },
+    funding: { icon: Wallet, tone: "bg-[#fbecea] text-[#b2392f]" },
+    reconcile: { icon: Scale, tone: "bg-[#eaf1fb] text-[#1f5fa8]" },
 };
 
-const notificationColors = {
-    success: "text-emerald-500 bg-emerald-500/10",
-    warning: "text-amber-500 bg-amber-500/10",
-    info: "text-blue-500 bg-blue-500/10",
-    alert: "text-red-500 bg-red-500/10",
-};
-
+/**
+ * Actionable notifications derived from live workspace state. Technical
+ * provider and chain alerts are not shown here; they live in Integrations.
+ */
 export default function NotificationsCenter() {
-    const [notifications, setNotifications] = useState(mockNotifications);
+    const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
+    const home = useHome();
+    const activity = useActivity({ limit: 30 });
+    const seenKey = `zapzive:notificationsSeen:${user?.id ?? "anon"}`;
+    const [seenAt, setSeenAt] = useState<number>(() => { try { return Number(localStorage.getItem(seenKey) ?? 0); } catch { return 0; } });
 
-    const unreadCount = notifications.filter(n => !n.read).length;
-
-    const markAsRead = (id: string) => {
-        setNotifications(prev =>
-            prev.map(n => n.id === id ? { ...n, read: true } : n)
-        );
-    };
-
-    const markAllAsRead = () => {
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    };
-
-    const clearAll = () => {
-        setNotifications([]);
-    };
+    const attention = home.data?.attention ?? [];
+    const events = useMemo(() => (activity.data?.items ?? []).filter((event) => ACTIONABLE_EVENTS.includes(event.action)).slice(0, 8), [activity.data]);
+    const unread = events.filter((event) => new Date(event.createdAt).getTime() > seenAt).length;
+    const markSeen = () => { const now = Date.now(); setSeenAt(now); try { localStorage.setItem(seenKey, String(now)); } catch { /* storage unavailable */ } };
 
     return (
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <Popover open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) markSeen(); }}>
             <PopoverTrigger asChild>
-                <button className="relative flex h-9 w-9 items-center justify-center rounded-full border border-[#d9d6cd] bg-[#fffdf8] text-[#77766e] transition-colors hover:border-[#b9d9cc] hover:text-[#20211e]" aria-label="Open notifications">
-                    <Bell className="w-4 h-4" />
-                    {unreadCount > 0 && (
-                        <motion.span
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full"
-                        />
-                    )}
+                <button className="relative flex h-9 w-9 items-center justify-center rounded-full border border-[#ebe8e0] bg-white text-[#74736b] transition-colors hover:border-[#d6d3c9] hover:text-[#1b1c19]" aria-label={`Notifications${attention.length + unread ? `, ${attention.length} need action, ${unread} new` : ""}`}>
+                    <Bell className="h-4 w-4" />
+                    {(attention.length > 0 || unread > 0) && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[#e8a33a] ring-2 ring-white" aria-hidden="true" />}
                 </button>
             </PopoverTrigger>
-            <PopoverContent
-                align="end"
-                className="w-[min(384px,calc(100vw-24px))] overflow-hidden rounded-2xl border-[#d9d6cd] bg-[#fffdf8] p-0 text-[#20211e] shadow-xl"
-            >
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-[#e1dfd7] px-4 py-3.5">
-                    <div>
-                        <h3 className="font-semibold text-[#20211e]">Notifications</h3>
-                        {unreadCount > 0 && (
-                            <p className="text-xs text-[#77766e]">{unreadCount} unread</p>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {unreadCount > 0 && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={markAllAsRead}
-                                className="h-7 text-xs text-[#575750]"
-                            >
-                                Mark all read
-                            </Button>
-                        )}
-                        {notifications.length > 0 && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={clearAll}
-                                className="h-7 text-xs text-[#575750]"
-                            >
-                                Clear all
-                            </Button>
-                        )}
-                    </div>
-                </div>
-
-                {/* Notifications List */}
-                <div className="max-h-96 overflow-y-auto">
-                    {notifications.length === 0 ? (
-                        <div className="py-12 text-center">
-                            <span className="dashboard-icon mx-auto mb-3 h-10 w-10"><Bell className="h-4 w-4" /></span>
-                            <p className="text-sm font-semibold text-[#20211e]">No notifications yet</p>
-                            <p className="mt-1 text-xs text-[#77766e]">Connected alerts will appear here when an event needs your attention.</p>
-                        </div>
-                    ) : (
-                        notifications.map((notification) => {
-                            const Icon = notificationIcons[notification.type];
-                            return (
-                                <div
-                                    key={notification.id}
-                                    className={cn(
-                                        "border-b border-[#e1dfd7] px-4 py-3 transition-colors last:border-0 hover:bg-[#f5f3ee]",
-                                        !notification.read && "bg-[#e8eee4]"
-                                    )}
-                                >
-                                    <div className="flex gap-3">
-                                        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0", notificationColors[notification.type])}>
-                                            <Icon className="w-4 h-4" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between gap-2 mb-1">
-                                                <h4 className="text-sm font-medium text-[#20211e]">
-                                                    {notification.title}
-                                                </h4>
-                                                {!notification.read && (
-                                                    <button
-                                                        onClick={() => markAsRead(notification.id)}
-                                                        className="text-emerald-500 hover:text-emerald-400 text-xs"
-                                                    >
-                                                        Mark read
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <p className="mb-2 text-xs text-[#575750]">
-                                                {notification.message}
-                                            </p>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-xs text-[#77766e]">
-                                                    {notification.timestamp}
-                                                </span>
-                                                {notification.actionLabel && (
-                                                    <a
-                                                        href={notification.actionHref}
-                                                        className="text-xs text-emerald-500 hover:text-emerald-400 font-medium"
-                                                    >
-                                                        {notification.actionLabel} →
-                                                    </a>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })
+            <PopoverContent align="end" className="w-[min(400px,calc(100vw-24px))] overflow-hidden rounded-2xl border-[#e3e0d7] bg-white p-0 text-[#1b1c19] shadow-xl">
+                <div className="border-b border-[#ece9e1] px-4 py-3.5"><h3 className="text-sm font-semibold">Notifications</h3></div>
+                <div className="max-h-[440px] overflow-y-auto">
+                    {attention.length > 0 && (
+                        <section aria-label="Needs action">
+                            <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-[#9a998f]">Needs action</p>
+                            <ul>
+                                {attention.map((item) => {
+                                    const meta = KIND_ICONS[item.kind] ?? KIND_ICONS.approval;
+                                    return (
+                                        <li key={item.kind}>
+                                            <Link to={item.href} onClick={() => setIsOpen(false)} className="flex items-start gap-3 px-4 py-2.5 hover:bg-[#faf9f6]">
+                                                <span className={cn("mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", meta.tone)}><meta.icon className="h-4 w-4" /></span>
+                                                <span className="min-w-0"><span className="block text-[13px] font-semibold">{item.title}</span><span className="block truncate text-xs text-[#74736b]">{item.detail}</span></span>
+                                            </Link>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </section>
                     )}
+                    <section aria-label="Recent">
+                        <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-[#9a998f]">Recent</p>
+                        {events.length === 0 ? <p className="px-4 pb-4 pt-1 text-[13px] text-[#74736b]">No payout events yet.</p> : (
+                            <ul className="pb-2">
+                                {events.map((event) => (
+                                    <li key={event.id} className="flex items-start gap-3 px-4 py-2.5">
+                                        <span className={cn("mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full", /failed|held|rejected|failures/.test(event.action) ? "bg-[#fbecea] text-[#b2392f]" : "bg-[#e7f3ed] text-[#0b6b4f]")}>{/failed|held|rejected|failures/.test(event.action) ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}</span>
+                                        <span className="min-w-0 text-[13px] leading-5">
+                                            <span className="text-[#3c3c37]"><span className="font-semibold text-[#1b1c19]">{event.actorName ?? "Zapzive"}</span> {describeEvent(event)}</span>
+                                            <span className="flex items-center gap-1.5 text-xs text-[#8a897f]">{new Date(event.createdAt).getTime() > seenAt && <span className="h-1.5 w-1.5 rounded-full bg-[#e8a33a]" aria-label="New" />}{formatRelative(event.createdAt)}</span>
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </section>
                 </div>
+                <div className="border-t border-[#ece9e1] bg-[#faf9f6] px-4 py-2.5 text-xs"><Link to="/dashboard/activity" onClick={() => setIsOpen(false)} className="font-semibold text-primary hover:underline">View all activity</Link></div>
             </PopoverContent>
         </Popover>
     );

@@ -39,17 +39,17 @@ npm run dev
 
 The server will start on `http://localhost:3001`
 
-Authenticated writes require an `Idempotency-Key`. Dashboard requests use an HttpOnly session cookie and `X-Requested-With`; server-to-server requests use a scoped test API key. This repository does not connect to live payment providers.
+Authenticated writes require an `Idempotency-Key`. Dashboard requests use an HttpOnly session cookie and `X-Requested-With`; server-to-server requests use a scoped test API key. Operational workflows remain evaluation records, while the separate connected-wallet EVM rail reads real networks and requires an explicit environment configuration.
 
-## Wallet-approved USDC rail
+## Wallet-approved EVM rail
 
-The dashboard includes a separate, non-custodial USDC rail for connected browser wallets such as Rainbow. It is deliberately isolated from the sandbox `Asset` balances: a verified chain receipt is an **observational record**, never a claim that Zapzive holds the user's wallet funds.
+The dashboard includes a non-custodial EVM rail for connected browser wallets such as MetaMask and Rainbow. It is deliberately isolated from the operational `Asset` records: every displayed holding is read from the selected network RPC, and a verified chain receipt is an **observational record**, never a claim that Zapzive holds the user's wallet funds.
 
 ### What it does
 
-- Supports native USDC on Ethereum Sepolia, Arbitrum Sepolia, Optimism Sepolia, Base Sepolia, and Polygon Amoy for test work. Ethereum, Arbitrum, Optimism, Base, and Polygon mainnets are compiled in but disabled by default.
+- Supports native EVM assets and USDC on Ethereum Sepolia, Arbitrum Sepolia, Optimism Sepolia, Base Sepolia, and Polygon Amoy. Optional USDT and DAI contracts are configured per network through protected backend environment variables. Ethereum, Arbitrum, Optimism, Base, and Polygon mainnets are compiled in but disabled by default.
 - Uses an EIP-4361-style, expiring ownership message to link an externally owned wallet. The message cannot authorize a transfer or token approval.
-- Creates a server-side payment intent with exact integer USDC base units, then simulates the same ERC-20 `transfer` before the user sees a wallet send request.
+- Creates a server-side payment intent with exact integer token units, checks live RPC balances and transfer simulation, then asks the connected wallet to sign and broadcast.
 - The wallet, not Zapzive, sends the transaction. Zapzive never receives a seed phrase, private key, or signing credential.
 - Persists a wallet-returned transaction hash before it is necessarily indexed by an RPC, so an interrupted tab does not lead to an unsafe second send.
 - Validates the mined transaction's chain, sender, USDC contract, calldata, zero native value, nonce, receipt, canonical block, and exactly one matching `Transfer` event before calling it settled.
@@ -79,6 +79,21 @@ npm run crypto:reconcile
 # Continuous worker for a non-serverless deployment.
 npm run crypto:worker
 ```
+
+### Local devnet for hands-on testing
+
+Try the full wallet flow in MetaMask without faucets on a private Hardhat chain (chain ID 31337) with test USDC, USDT and DAI.
+
+1. In `backend/.env`, set `CRYPTO_ENABLE_LOCAL_DEVNET=true` and restart the backend.
+2. In a separate terminal, start the chain and fund your wallet. Keep it running while you test:
+
+   ```bash
+   npm run devnet -- 0xYourMetaMaskAddress
+   ```
+
+3. In Crypto payments, choose **Local devnet**. MetaMask asks to add the network (RPC `http://127.0.0.1:8545`, chain ID 31337). Verify the wallet and send a payment; it settles within seconds.
+
+Fund more wallets with `npm run devnet:fund -- 0xAddress`. Stopping the chain erases it: after a restart, fund again and clear MetaMask's activity for the network (Settings → Advanced → Clear activity tab data). The devnet is never offered when `NODE_ENV=production` or on Vercel.
 
 ## API Endpoints
 
@@ -110,9 +125,21 @@ npm run crypto:worker
 ### Treasury
 - `GET /api/treasury/assets` - List assets
 - `GET /api/treasury/portfolio` - Portfolio summary
-- `POST /api/treasury/swap` - Execute swap
-- `POST /api/treasury/deposit` - Deposit funds
-- `POST /api/treasury/withdraw` - Withdraw funds
+- `POST /api/treasury/swap` - Returns a not-configured response until an on-chain swap provider is integrated
+- `POST /api/treasury/deposit` - Reads balances from connected wallets; no local balance mutation
+- `POST /api/treasury/withdraw` - Requires the signed crypto payment flow
+
+### Crypto payments
+- `GET /api/crypto/networks` - List enabled testnet or live EVM networks and configured assets
+- `GET /api/crypto/portfolio` - Read verified wallet holdings from network RPCs
+- `GET /api/crypto/wallets` - List wallets linked to the workspace
+- `POST /api/crypto/wallets/challenge` - Create an expiring wallet ownership challenge
+- `POST /api/crypto/wallets/verify` - Verify the wallet signature and link the address
+- `GET /api/crypto/balances` - Read a selected asset and native fee balance
+- `POST /api/crypto/payments` - Create an immutable payment intent
+- `POST /api/crypto/payments/:id/prepare` - Re-check balance and prepare the exact wallet transaction
+- `POST /api/crypto/payments/:id/submit` - Record a wallet-broadcast transaction hash
+- `POST /api/crypto/payments/:id/reconcile` - Verify receipt and settlement evidence
 
 ### Escrow
 - `GET /api/escrow/contracts` - List contracts

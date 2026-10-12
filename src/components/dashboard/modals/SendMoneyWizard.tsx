@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import AssetIcon, { CurrencyFlag } from "@/components/dashboard/AssetIcon";
 
 interface SendMoneyWizardProps {
     isOpen: boolean;
@@ -443,15 +444,15 @@ export function SendMoneyWizard({ isOpen, onClose }: SendMoneyWizardProps) {
                                                     placeholder="0.00"
                                                 />
                                             </div>
-                                            <div className="w-32">
-                                                <Select value={transferData.currency} onValueChange={v => setTransferData({ ...transferData, currency: v })}>
-                                                    <SelectTrigger className="h-14 bg-muted/50 border-border font-bold text-foreground focus:ring-emerald-500/20">
+                                            <div className="w-36 shrink-0">
+                                                <Select value={transferData.currency} onValueChange={v => { if (v) setTransferData({ ...transferData, currency: v }); }}>
+                                                    <SelectTrigger className="h-14 font-semibold">
                                                         <SelectValue />
                                                     </SelectTrigger>
-                                                    <SelectContent className="bg-card border-border text-foreground">
-                                                        <SelectItem value="USDC">USDC</SelectItem>
-                                                        <SelectItem value="USDT">USDT</SelectItem>
-                                                        <SelectItem value="ETH">ETH</SelectItem>
+                                                    <SelectContent>
+                                                        <SelectItem value="USDC"><AssetIcon symbol="USDC" size="xs" />USDC</SelectItem>
+                                                        <SelectItem value="USDT"><AssetIcon symbol="USDT" size="xs" />USDT</SelectItem>
+                                                        <SelectItem value="ETH"><AssetIcon symbol="ETH" size="xs" />ETH</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -474,16 +475,16 @@ export function SendMoneyWizard({ isOpen, onClose }: SendMoneyWizardProps) {
                                                     className="h-14 text-2xl font-bold bg-muted/20 border-border text-foreground/60 tabular-nums cursor-default"
                                                 />
                                             </div>
-                                            <div className="w-32">
-                                                <Select value={transferData.localCurrency} onValueChange={v => setTransferData({ ...transferData, localCurrency: v })}>
-                                                    <SelectTrigger className="h-14 bg-muted/50 border-border font-bold text-foreground focus:ring-emerald-500/20">
+                                            <div className="w-36 shrink-0">
+                                                <Select value={transferData.localCurrency} onValueChange={v => { if (v) setTransferData({ ...transferData, localCurrency: v }); }}>
+                                                    <SelectTrigger className="h-14 font-semibold">
                                                         <SelectValue />
                                                     </SelectTrigger>
-                                                    <SelectContent className="bg-card border-border text-foreground">
-                                                        <SelectItem value="NGN">NGN</SelectItem>
-                                                        <SelectItem value="KES">KES</SelectItem>
-                                                        <SelectItem value="GHS">GHS</SelectItem>
-                                                        <SelectItem value="BRL">BRL</SelectItem>
+                                                    <SelectContent>
+                                                        <SelectItem value="NGN"><CurrencyFlag code="NGN" size="xs" />NGN</SelectItem>
+                                                        <SelectItem value="KES"><CurrencyFlag code="KES" size="xs" />KES</SelectItem>
+                                                        <SelectItem value="GHS"><CurrencyFlag code="GHS" size="xs" />GHS</SelectItem>
+                                                        <SelectItem value="BRL"><CurrencyFlag code="BRL" size="xs" />BRL</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>

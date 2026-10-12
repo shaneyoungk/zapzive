@@ -14,11 +14,21 @@ export function useCryptoRails(companyId: string) {
         queryFn: () => apiClient.getCryptoNetworks(),
         staleTime: 30_000,
         retry: 1,
+        enabled: Boolean(companyId),
     });
     const wallets = useQuery({
         queryKey: ["crypto", companyId, "wallets"],
         queryFn: () => apiClient.getCryptoWallets(),
         retry: 1,
+        enabled: Boolean(companyId),
+    });
+    const portfolio = useQuery({
+        queryKey: ["crypto", companyId, "portfolio"],
+        queryFn: () => apiClient.getCryptoPortfolio(),
+        staleTime: 15_000,
+        refetchInterval: 30_000,
+        retry: 1,
+        enabled: Boolean(companyId),
     });
     const history = useInfiniteQuery({
         queryKey: ["crypto", companyId, "payments"],
@@ -31,6 +41,7 @@ export function useCryptoRails(companyId: string) {
             .flatMap((page) => page.items)
             .some((payment) => ["submitted", "confirming"].includes(payment.status)) ? 15_000 : false,
         retry: 1,
+        enabled: Boolean(companyId),
     });
     const refresh = useCallback(async () => {
         await queryClient.invalidateQueries({ queryKey: ["crypto", companyId] });
@@ -38,6 +49,7 @@ export function useCryptoRails(companyId: string) {
             queryClient.invalidateQueries({ queryKey: ["treasury"] }),
             queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
             queryClient.invalidateQueries({ queryKey: ["analytics"] }),
+            queryClient.invalidateQueries({ queryKey: ["crypto", companyId, "portfolio"] }),
         ]);
     }, [queryClient, companyId]);
     const updatePayment = useCallback((payment: CryptoPayment) => {
@@ -47,10 +59,21 @@ export function useCryptoRails(companyId: string) {
             queryClient.invalidateQueries({ queryKey: ["treasury"] }),
             queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
             queryClient.invalidateQueries({ queryKey: ["analytics"] }),
+            queryClient.invalidateQueries({ queryKey: ["crypto", companyId, "portfolio"] }),
         ]);
     }, [queryClient, companyId]);
 
-    return { networks, wallets, history, refresh, updatePayment };
+    return { networks, wallets, portfolio, history, refresh, updatePayment };
+}
+
+export function useCryptoReadiness(companyId: string, mode: 'testnet' | 'live') {
+    return useQuery({
+        queryKey: ['crypto', companyId, 'readiness', mode],
+        queryFn: () => apiClient.getCryptoReadiness(mode),
+        enabled: Boolean(companyId),
+        staleTime: 30_000,
+        retry: 1,
+    });
 }
 
 export function useCryptoPayment(companyId: string, paymentId: string | null) {

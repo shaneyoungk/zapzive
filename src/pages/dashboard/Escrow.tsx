@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
     ShieldCheck,
     Plus,
@@ -61,7 +61,8 @@ export default function Escrow() {
     const [statusFilter, setStatusFilter] = useState<string>("all");
 
     // Modal state
-    const [isNewContractOpen, setIsNewContractOpen] = useState(false);
+    const { pathname } = useLocation();
+    const [isNewContractOpen, setIsNewContractOpen] = useState(() => pathname.endsWith("/new"));
 
     const { data: allContracts = [], isLoading } = useContracts();
     const releaseFunds = useReleaseFunds();

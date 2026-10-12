@@ -5,15 +5,20 @@ const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1
 // A stale deployment URL in a developer's .env must not silently route a
 // localhost session away from the local API. This is especially important for
 // wallet challenges: the signature prompt must be created by the same backend
-// that owns the active local session.
-const API_BASE_URL = isLocalBrowser ? 'http://localhost:3001' : (configuredApiUrl || 'http://localhost:3001');
+// that owns the active local session. The API host follows the page host:
+// localhost and 127.0.0.1 are different sites to the browser, so the SameSite
+// session cookie only reaches an API addressed by the same name.
+const API_BASE_URL = isLocalBrowser ? `http://${window.location.hostname}:3001` : (configuredApiUrl || 'http://localhost:3001');
 export const AUTH_STORAGE_KEY = 'zapzive_auth_token';
 
 export interface CryptoAsset {
     symbol: string;
-    kind: 'erc20' | 'native' | 'sandbox';
+    kind: 'erc20' | 'native';
     tokenAddress: string;
     decimals: number;
+    name?: string;
+    icon?: string;
+    color?: string;
     enabled: boolean;
     reason: string | null;
 }
@@ -21,7 +26,7 @@ export interface CryptoAsset {
 export interface CryptoNetwork {
     chainId: number;
     name: string;
-    kind: 'onchain' | 'sandbox';
+    kind: 'onchain';
     testnet: boolean;
     tokenAddress: string;
     symbol: string;
@@ -31,6 +36,8 @@ export interface CryptoNetwork {
     assets: CryptoAsset[];
     enabled: boolean;
     reason: string | null;
+    // The private local chain started with `npm run devnet` (never offered in production).
+    devnet?: boolean;
     walletAddParams: {
         chainId: string;
         chainName: string;
@@ -86,10 +93,74 @@ export interface PreparedCryptoPayment {
 export interface CryptoBalances {
     chainId: number;
     address: string;
-    simulated: boolean;
-    asset: { symbol: string; kind: 'erc20' | 'native' | 'sandbox'; decimals: number; amount: string; amountUnits: string };
+    simulated: false;
+    asset: { symbol: string; kind: 'erc20' | 'native'; decimals: number; amount: string; amountUnits: string };
     feeAsset: { symbol: string; decimals: number; amount: string; amountUnits: string };
     asOf: string;
+}
+
+export interface OnchainHolding {
+    id: string;
+    walletId: string;
+    chainId: number;
+    network: string;
+    walletAddress: string;
+    symbol: string;
+    name: string;
+    kind: 'erc20' | 'native';
+    tokenAddress: string;
+    decimals: number;
+    amount: string;
+    amountUnits: string;
+    icon: string;
+    color: string;
+    explorerUrl: string | null;
+    source: 'rpc';
+    usdValue: null;
+    valuation: 'not_configured';
+    asOf: string;
+}
+
+export interface OnchainPortfolio {
+    mode: 'testnet' | 'live';
+    items: OnchainHolding[];
+    networkErrors: Array<{ chainId: number; network: string; message: string }>;
+    syncedAt: string;
+}
+
+export interface CryptoRailReadiness {
+    key: string;
+    chainId: number;
+    name: string;
+    testnet: boolean;
+    ready: boolean;
+    reason: string | null;
+    primaryBlock: string | null;
+    secondaryBlock: string | null;
+    assets: string[];
+}
+
+export interface CryptoReadiness {
+    mode: 'testnet' | 'live';
+    ready: boolean;
+    rails: CryptoRailReadiness[];
+    reconciliation: { scheduled: boolean; message: string | null };
+}
+
+export function apiErrorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
+    if (axios.isAxiosError(error)) {
+        const data = error.response?.data as { error?: unknown; message?: unknown; code?: unknown; requestId?: unknown } | undefined;
+        const backendMessage = data?.error ?? data?.message;
+        if (typeof backendMessage === 'string' && backendMessage.trim()) return backendMessage.slice(0, 500);
+        if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) return 'The server took too long to respond. Check your connection and try again.';
+        if (!error.response) return 'Zapzive could not reach the backend. Check your connection and try again.';
+        if (error.response.status === 429) return 'Too many requests were sent. Wait a moment, then try again.';
+        if (error.response.status >= 500) return 'Zapzive could not complete that request. The operation was not retried automatically.';
+    }
+    if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' && error.message.trim()) {
+        return error.message.slice(0, 500);
+    }
+    return fallback;
 }
 
 function createRequestKey(): string {
@@ -101,6 +172,11 @@ function createRequestKey(): string {
 
 class ApiClient {
     private client: AxiosInstance;
+
+    /** The configured axios instance (auth, CSRF and idempotency headers) for feature modules. */
+    get http(): AxiosInstance {
+        return this.client;
+    }
 
     constructor() {
         this.client = axios.create({
@@ -440,6 +516,11 @@ class ApiClient {
         return data;
     }
 
+    async setEnvironment(mode: 'testnet' | 'live') {
+        const { data } = await this.client.post('/settings/environment', { mode });
+        return data;
+    }
+
     async getApiKeys() {
         const { data } = await this.client.get('/settings/api-keys');
         return data;
@@ -486,8 +567,18 @@ class ApiClient {
         return data;
     }
 
+    async getCryptoReadiness(mode?: 'testnet' | 'live') {
+        const { data } = await this.client.get<CryptoReadiness>('/crypto/readiness', { params: mode ? { mode } : undefined });
+        return data;
+    }
+
     async getCryptoWallets() {
         const { data } = await this.client.get<CryptoWallet[]>('/crypto/wallets');
+        return data;
+    }
+
+    async getCryptoPortfolio() {
+        const { data } = await this.client.get<OnchainPortfolio>('/crypto/portfolio');
         return data;
     }
 

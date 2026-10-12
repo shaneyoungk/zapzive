@@ -301,8 +301,7 @@ export default function TreasuryTransfer() {
                                         <AssetIcon
                                             src={selectedAsset?.icon}
                                             symbol={selectedAsset?.symbol}
-                                            size="sm"
-                                            className="w-5 h-5"
+                                            size="xs"
                                         />
                                         <span className="text-xs text-white font-bold">{selectedAsset?.name} ({selectedAsset?.symbol})</span>
                                     </div>

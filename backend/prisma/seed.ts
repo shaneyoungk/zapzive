@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log('🌱 Starting database seed...');
+    console.log('ðŸŒ± Starting database seed...');
 
     const demoCompanyId = 'demo-company-123';
 
@@ -22,7 +22,7 @@ async function main() {
         }
     });
 
-    console.log('✅ Created company:', company.name);
+    console.log('âœ… Created company:', company.name);
 
     // Create a demo user for this company
     const demoUser = await prisma.user.upsert({
@@ -38,78 +38,10 @@ async function main() {
         }
     });
 
-    console.log('✅ Created demo user:', demoUser.email);
+    console.log('âœ… Created demo user:', demoUser.email);
 
-    // Create assets
-    const assets = await Promise.all([
-        prisma.asset.upsert({
-            where: { companyId_symbol: { companyId: demoCompanyId, symbol: 'USDC' } },
-            update: { chain: 'Zapzive Sandbox', icon: '/icons/usdc.png' },
-            create: {
-                companyId: demoCompanyId,
-                symbol: 'USDC',
-                name: 'USD Coin',
-                balance: 45230.50,
-                usdValue: 45230.50,
-                change24h: 0.01,
-                chain: 'Zapzive Sandbox',
-                color: '#2775CA',
-                icon: '/icons/usdc.png'
-            }
-        }),
-        prisma.asset.upsert({
-            where: { companyId_symbol: { companyId: demoCompanyId, symbol: 'USDT' } },
-            update: { chain: 'Zapzive Sandbox', icon: '/icons/tether.png' },
-            create: {
-                companyId: demoCompanyId,
-                symbol: 'USDT',
-                name: 'Tether',
-                balance: 12450.00,
-                usdValue: 12450.00,
-                change24h: -0.02,
-                chain: 'Zapzive Sandbox',
-                color: '#26A17B',
-                icon: '/icons/tether.png'
-            }
-        }),
-        prisma.asset.upsert({
-            where: { companyId_symbol: { companyId: demoCompanyId, symbol: 'ETH' } },
-            update: { chain: 'Zapzive Sandbox', icon: '/icons/ethereum.png' },
-            create: {
-                companyId: demoCompanyId,
-                symbol: 'ETH',
-                name: 'Ethereum',
-                balance: 3.56,
-                usdValue: 8727.58,
-                change24h: 2.34,
-                chain: 'Zapzive Sandbox',
-                color: '#627EEA',
-                icon: '/icons/ethereum.png'
-            }
-        }),
-        prisma.asset.upsert({
-            where: { companyId_symbol: { companyId: demoCompanyId, symbol: 'MATIC' } },
-            update: { chain: 'Zapzive Sandbox', icon: '/icons/polygon.png' },
-            create: { companyId: demoCompanyId, symbol: 'MATIC', name: 'Polygon', balance: 5000, usdValue: 2500, change24h: 0, chain: 'Zapzive Sandbox', color: '#8247E5', icon: '/icons/polygon.png' }
-        }),
-        prisma.asset.upsert({
-            where: { companyId_symbol: { companyId: demoCompanyId, symbol: 'DAI' } },
-            update: { chain: 'Zapzive Sandbox', icon: '/icons/dai.svg' },
-            create: { companyId: demoCompanyId, symbol: 'DAI', name: 'Dai', balance: 50000, usdValue: 50000, change24h: 0, chain: 'Zapzive Sandbox', color: '#F5AC37', icon: '/icons/dai.svg' }
-        }),
-        prisma.asset.upsert({
-            where: { companyId_symbol: { companyId: demoCompanyId, symbol: 'BTC' } },
-            update: { chain: 'Zapzive Sandbox', icon: '/icons/bitcoin.svg' },
-            create: { companyId: demoCompanyId, symbol: 'BTC', name: 'Bitcoin', balance: 1, usdValue: 60000, change24h: 0, chain: 'Zapzive Sandbox', color: '#F7931A', icon: '/icons/bitcoin.svg' }
-        }),
-        prisma.asset.upsert({
-            where: { companyId_symbol: { companyId: demoCompanyId, symbol: 'SOL' } },
-            update: { chain: 'Zapzive Sandbox', icon: '/icons/solana.svg' },
-            create: { companyId: demoCompanyId, symbol: 'SOL', name: 'Solana', balance: 100, usdValue: 15000, change24h: 0, chain: 'Zapzive Sandbox', color: '#14F195', icon: '/icons/solana.svg' }
-        })
-    ]);
-
-    console.log('✅ Created', assets.length, 'assets');
+    // Crypto balances are read from verified external wallets and the selected EVM network.
+    // The seed intentionally creates no fabricated asset balances.
 
     // Create recipients
     const recipients = await Promise.all([
@@ -141,7 +73,7 @@ async function main() {
         })
     ]);
 
-    console.log('✅ Created', recipients.length, 'recipients');
+    console.log('âœ… Created', recipients.length, 'recipients');
 
     // Create workers
     const workers = await Promise.all([
@@ -179,7 +111,7 @@ async function main() {
         })
     ]);
 
-    console.log('✅ Created', workers.length, 'workers');
+    console.log('âœ… Created', workers.length, 'workers');
 
     // Create sample transactions
     const transactions = await Promise.all([
@@ -212,14 +144,14 @@ async function main() {
         })
     ]);
 
-    console.log('✅ Created', transactions.length, 'transactions');
+    console.log('âœ… Created', transactions.length, 'transactions');
 
-    console.log('🎉 Database seeding completed!');
+    console.log('ðŸŽ‰ Database seeding completed!');
 }
 
 main()
     .catch((e) => {
-        console.error('❌ Error seeding database:', e);
+        console.error('âŒ Error seeding database:', e);
         process.exit(1);
     })
     .finally(async () => {

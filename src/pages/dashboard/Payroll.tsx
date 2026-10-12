@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
     Users,
     DollarSign,
@@ -70,7 +70,8 @@ export default function Payroll() {
     // Modal states
     const [isAddWorkerOpen, setIsAddWorkerOpen] = useState(false);
     const [isImportCSVOpen, setIsImportCSVOpen] = useState(false);
-    const [isNewBatchOpen, setIsNewBatchOpen] = useState(false);
+    const [searchParams] = useSearchParams();
+    const [isNewBatchOpen, setIsNewBatchOpen] = useState(() => searchParams.get("new") === "batch");
 
     // Fetch real data
     const { data: workersData, isLoading: workersLoading } = useWorkers({ search: searchQuery });
@@ -124,7 +125,7 @@ export default function Payroll() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard title="Next payroll" value={batchesLoading ? "…" : nextBatch ? new Date(nextBatch.scheduledDate || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "None"} icon={Clock} subtitle={nextBatch ? `$${(nextBatch.totalAmount || 0).toLocaleString()}` : "No upcoming batches"} />
                 <MetricCard title="Active workers" value={workersLoading ? "…" : activeWorkersCount} icon={Users} subtitle={`${uniqueCountries} countries`} />
-                <MetricCard title="Monthly total" value={batchesLoading ? "…" : `$${(monthlyTotal || 0).toLocaleString()}`} icon={DollarSign} trend={{ value: 8.5, label: "vs last month" }} />
+                <MetricCard title="Payroll volume" value={batchesLoading ? "…" : `$${(monthlyTotal || 0).toLocaleString()}`} icon={DollarSign} subtitle="Across all payroll batches" />
                 <MetricCard title="Estimated savings" value={batchesLoading ? "…" : `$${(costSavings || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`} icon={TrendingUp} subtitle="Compared with traditional rails" />
             </div>
 

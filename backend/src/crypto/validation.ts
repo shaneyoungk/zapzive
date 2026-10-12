@@ -36,6 +36,18 @@ export function transactionHash(value: unknown): Hex {
     return value.toLowerCase() as Hex;
 }
 
+// EIP-7702 delegated accounts expose a 0xef0100 designator followed by the
+// 20-byte delegate address instead of contract bytecode.
+export function isDelegatedAccountCode(code: string): boolean {
+    return /^0xef0100[0-9a-f]{40}$/i.test(code);
+}
+
+// Exponential re-check delay for chain reads: 15s doubling to a 5 minute cap.
+export function retryDelayMs(attempts: number): number {
+    const exponent = Math.min(Math.max(0, Math.floor(attempts) || 0), 5);
+    return Math.min(300_000, 15_000 * 2 ** exponent);
+}
+
 export interface TransferIntent {
     chainId: number; tokenAddress: string; fromAddress: string; toAddress: string; amountUnits: string;
     nonce: number | null; createdBlock: string;

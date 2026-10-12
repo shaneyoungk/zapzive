@@ -1,5 +1,5 @@
 import { decodeFunctionResult, encodeFunctionData, erc20Abi, formatUnits, getAddress, isAddress, parseUnits, toHex, zeroAddress, type Address, type Hash, type Hex } from "viem";
-import type { CreateCryptoPayment, CryptoBalances, CryptoNetwork, CryptoPayment, PreparedCryptoPayment } from "./api-client";
+import { apiErrorMessage, type CreateCryptoPayment, type CryptoBalances, type CryptoNetwork, type CryptoPayment, type PreparedCryptoPayment } from "./api-client";
 
 export interface InjectedProvider {
     request(args: { method: string; params?: readonly unknown[] | Record<string, unknown> }): Promise<unknown>;
@@ -109,17 +109,26 @@ export async function signWalletChallenge(connection: WalletConnection, message:
     return signature;
 }
 
+// Plain HTTP is acceptable only for an RPC on the user's own machine (the local
+// devnet); every other wallet endpoint must use HTTPS.
+function trustedRpcUrl(url: string) {
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === "https:" || (parsed.protocol === "http:" && ["127.0.0.1", "localhost"].includes(parsed.hostname));
+    } catch { return false; }
+}
+
 function validatedWalletAddParams(network: Pick<CryptoNetwork, "chainId" | "walletAddParams">) {
     const params = network.walletAddParams;
     if (!params || parseChainId(params.chainId) !== network.chainId || !params.chainName || !Number.isInteger(params.nativeCurrency?.decimals) || params.nativeCurrency.decimals < 0 || params.nativeCurrency.decimals > 255) return null;
-    const rpcUrls = params.rpcUrls.filter((url) => {
-        try { return new URL(url).protocol === "https:"; } catch { return false; }
-    });
+    const rpcUrls = params.rpcUrls.filter(trustedRpcUrl);
     if (!rpcUrls.length) return null;
     const blockExplorerUrls = (params.blockExplorerUrls || []).filter((url) => {
         try { return new URL(url).protocol === "https:"; } catch { return false; }
     });
-    return { ...params, rpcUrls, ...(blockExplorerUrls.length ? { blockExplorerUrls } : {}) };
+    // Forward only the reviewed fields, so an unfiltered value can never reach the wallet.
+    const reviewed = { chainId: params.chainId, chainName: params.chainName, nativeCurrency: params.nativeCurrency, rpcUrls };
+    return blockExplorerUrls.length ? { ...reviewed, blockExplorerUrls } : reviewed;
 }
 
 export async function switchWalletNetwork(provider: InjectedProvider, network: Pick<CryptoNetwork, "chainId" | "walletAddParams">): Promise<number> {
@@ -258,13 +267,7 @@ export function cryptoErrorMessage(error: unknown): string {
     if (code === -32002) return "A request is already open in your wallet. Open the extension to finish it.";
     if (code === 4902) return "Add this network in your wallet's network settings, then try switching again.";
     if (code === 4900 || code === 4901) return "The wallet disconnected. Reconnect it and check the selected network.";
-    if (error && typeof error === "object" && "response" in error) {
-        const response = error.response as { data?: { error?: unknown; message?: unknown } };
-        const message = response?.data?.error ?? response?.data?.message;
-        if (typeof message === "string") return message.slice(0, 500);
-    }
-    if (error && typeof error === "object" && "message" in error && typeof error.message === "string") return error.message.slice(0, 500);
-    return error instanceof Error ? error.message.slice(0, 500) : "Something went wrong. Please try again.";
+    return apiErrorMessage(error, "Something went wrong. Please try again.");
 }
 
 export function safeExplorerUrl(baseUrl: string | null | undefined, hash: string): string | undefined {

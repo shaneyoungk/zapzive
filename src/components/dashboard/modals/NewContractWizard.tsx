@@ -15,13 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, ChevronRight, Loader2, Shield, Calendar, DollarSign, Link, Copy, Check, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator, SelectLabel } from "@/components/ui/select";
 import { useWorkers } from "@/hooks/use-payroll";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -233,6 +227,7 @@ export function NewContractWizard({ isOpen, onClose }: NewContractWizardProps) {
                                             <Select
                                                 value={contractData.contractor}
                                                 onValueChange={(value) => {
+                                                    if (!value) return;
                                                     const isExternal = value === "External / Open Bid";
                                                     setContractData({
                                                         ...contractData,
@@ -241,15 +236,19 @@ export function NewContractWizard({ isOpen, onClose }: NewContractWizardProps) {
                                                     });
                                                 }}
                                             >
-                                                <SelectTrigger className="bg-muted/50 border-border h-11 focus:ring-emerald-500/50 outline-none">
+                                                <SelectTrigger>
                                                     <SelectValue placeholder="Select contractor" />
                                                 </SelectTrigger>
-                                                <SelectContent className="bg-card border-border text-foreground">
-                                                    <SelectItem value="External / Open Bid" className="text-emerald-500 font-bold">
-                                                        External / Open Bid (Share Link)
+                                                <SelectContent>
+                                                    <SelectItem value="External / Open Bid">
+                                                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#e7f3ed] text-[11px] font-bold text-[#0b6b4f]">↗</span>
+                                                        Open bid · share a public link
                                                     </SelectItem>
+                                                    {workers && workers.length > 0 && <SelectSeparator />}
+                                                    {workers && workers.length > 0 && <SelectLabel>Your workers</SelectLabel>}
                                                     {workers?.map(worker => (
                                                         <SelectItem key={worker.id} value={worker.name}>
+                                                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f1efe9] text-[10px] font-bold text-[#55544d]">{worker.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span>
                                                             {worker.name}
                                                         </SelectItem>
                                                     ))}

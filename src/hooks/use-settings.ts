@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '@/lib/api-client';
+import apiClient, { apiErrorMessage } from '@/lib/api-client';
 import { toast } from 'sonner';
 
 // Get Profile
@@ -21,7 +21,25 @@ export function useUpdateProfile() {
             toast.success('Profile updated successfully');
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Failed to update profile');
+            toast.error(apiErrorMessage(error, 'Failed to update profile'));
+        },
+    });
+}
+
+export function useSetEnvironment() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (mode: 'testnet' | 'live') => apiClient.setEnvironment(mode),
+        onSuccess: (company) => {
+            queryClient.invalidateQueries({ queryKey: ['settings', 'profile'] });
+            queryClient.invalidateQueries({ queryKey: ['crypto'] });
+            queryClient.invalidateQueries({ queryKey: ['treasury'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            toast.success(company?.isTestMode ? 'Testnet mode enabled' : 'Live mode enabled');
+        },
+        onError: (error: any) => {
+            toast.error(apiErrorMessage(error, 'Unable to change environment'));
         },
     });
 }
@@ -45,7 +63,7 @@ export function useGenerateApiKey() {
             toast.success('API key generated successfully');
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Failed to generate API key');
+            toast.error(apiErrorMessage(error, 'Failed to generate API key'));
         },
     });
 }
@@ -61,7 +79,7 @@ export function useRevokeApiKey() {
             toast.success('API key revoked successfully');
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Failed to revoke API key');
+            toast.error(apiErrorMessage(error, 'Failed to revoke API key'));
         },
     });
 }
@@ -85,7 +103,7 @@ export function useCreateWebhook() {
             toast.success('Webhook created successfully');
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Failed to create webhook');
+            toast.error(apiErrorMessage(error, 'Failed to create webhook'));
         },
     });
 }
@@ -101,7 +119,7 @@ export function useUpdateWebhook() {
             toast.success('Webhook updated successfully');
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Failed to update webhook');
+            toast.error(apiErrorMessage(error, 'Failed to update webhook'));
         },
     });
 }
@@ -117,7 +135,7 @@ export function useDeleteWebhook() {
             toast.success('Webhook deleted successfully');
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.error || 'Failed to delete webhook');
+            toast.error(apiErrorMessage(error, 'Failed to delete webhook'));
         },
     });
 }

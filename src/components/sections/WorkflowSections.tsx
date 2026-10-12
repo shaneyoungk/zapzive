@@ -1,135 +1,103 @@
-import { ArrowUpRight, Clock3, Landmark, LockKeyhole, Send, TrendingUp, UsersRound } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Scale, ShieldCheck, UsersRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ServicesCard } from "@/components/ui/services-card";
 
-type WorkflowKind = "payroll" | "remittance" | "treasury" | "escrow";
+type WorkflowKind = "runs" | "approvals" | "exceptions" | "reconciliation";
 
 const workflows = [
   {
-    id: "payroll",
-    kind: "payroll" as const,
-    number: "01",
-    icon: UsersRound,
-    eyebrow: "Payroll",
-    title: "Pay a team from one reviewed batch.",
-    copy: "Add workers and amounts, confirm the total, then route the batch for approval before it is sent.",
-    href: "/use-cases#payroll",
-    cta: "Explore payroll",
+    id: "runs", kind: "runs" as const, number: "01", icon: UsersRound, eyebrow: "Payout runs",
+    title: "Prepare a run and validate every row.",
+    copy: "Import a CSV or choose recipients. Each payout is checked for unknown recipients, duplicates, invalid details and unusual amounts, and quoted in the sandbox.",
+    href: "/features#runs", cta: "How payout runs work",
   },
   {
-    id: "remittance",
-    kind: "remittance" as const,
-    number: "02",
-    icon: Send,
-    eyebrow: "Remittance",
-    title: "Review cost and delivery before you send.",
-    copy: "Check what leaves your balance, what the recipient receives, and how the payment will be delivered.",
-    href: "/use-cases#remittance",
-    cta: "Explore remittance",
+    id: "approvals", kind: "approvals" as const, number: "02", icon: ShieldCheck, eyebrow: "Approvals",
+    title: "Approval rules instead of chat threads.",
+    copy: "Set amount tiers and rules for new recipients and changed payout details. Approvers see exactly why their sign-off is needed.",
+    href: "/features#approvals", cta: "How approvals work",
   },
   {
-    id: "treasury",
-    kind: "treasury" as const,
-    number: "03",
-    icon: Landmark,
-    eyebrow: "Treasury",
-    title: "See what each balance is available for.",
-    copy: "Separate available, reserved, and pending funds so the next funding decision is clear.",
-    href: "/features#treasury",
-    cta: "Explore treasury",
+    id: "exceptions", kind: "exceptions" as const, number: "03", icon: AlertTriangle, eyebrow: "Exceptions",
+    title: "Failures that explain themselves.",
+    copy: "Every failed or held payout says what happened, whether money moved, what to do next and who can do it.",
+    href: "/features#exceptions", cta: "How exceptions work",
   },
   {
-    id: "escrow",
-    kind: "escrow" as const,
-    number: "04",
-    icon: LockKeyhole,
-    eyebrow: "Escrow",
-    title: "Release money after a milestone is approved.",
-    copy: "Attach the work record, assign reviewers, and keep funds held until the agreed condition is met.",
-    href: "/use-cases#escrow",
-    cta: "Explore escrow",
+    id: "reconciliation", kind: "reconciliation" as const, number: "04", icon: Scale, eyebrow: "Reconciliation",
+    title: "Close every run with a record that adds up.",
+    copy: "Expected versus delivered, outstanding amounts, provider references and fees, with ledger and journal exports.",
+    href: "/features#reconciliation", cta: "How reconciliation works",
   },
 ];
 
 function Preview({ kind }: { kind: WorkflowKind }) {
-  if (kind === "payroll") {
+  if (kind === "runs") {
     return (
       <div className="workflow-preview">
         <div className="flex items-center justify-between border-b border-[#d9d6cd] pb-3">
-          <div><p className="text-sm font-bold text-[#20211e]">October contractors</p><p className="mt-1 font-mono text-[10px] uppercase tracking-[.08em] text-[#5d5d56]">12 recipients</p></div>
-          <p className="font-mono text-sm font-semibold text-[#20211e]">18,420 USDC</p>
+          <div><p className="text-sm font-bold text-[#20211e]">October contractors</p><p className="mt-1 font-mono text-[10px] uppercase tracking-[.08em] text-[#5d5d56]">73 rows imported</p></div>
+          <p className="font-mono text-sm font-semibold text-[#20211e]">KES 4.94M</p>
         </div>
-        {["Amara Okafor", "Daniel Mwangi", "Moses Kamau"].map((name, index) => (
-          <div key={name} className="flex items-center gap-3 border-b border-[#e4e1d9] py-3 last:border-b-0">
-            <UsersRound size={15} className="text-[#087f5b]" />
-            <span className="flex-1 text-sm font-medium text-[#20211e]">{name}</span>
-            <span className={`font-mono text-[10px] ${index === 2 ? "text-[#5d5d56]" : "text-[#087f5b]"}`}>{index === 2 ? "Review" : "Ready"}</span>
+        {[["69 ready", "text-[#087f5b]"], ["2 require correction", "text-[#9a2f2f]"], ["1 possible duplicate", "text-[#8a5a0b]"], ["1 payout-detail change", "text-[#8a5a0b]"]].map(([label, tone]) => (
+          <div key={label} className="flex items-center gap-3 border-b border-[#e4e1d9] py-2.5 last:border-b-0">
+            <span className={`h-2 w-2 rounded-full bg-current ${tone}`} />
+            <span className={`flex-1 text-sm font-medium ${tone}`}>{label}</span>
           </div>
         ))}
       </div>
     );
   }
-
-  if (kind === "remittance") {
+  if (kind === "approvals") {
     return (
       <div className="workflow-preview">
-        <div className="grid grid-cols-2 gap-y-5">
-          <div><p className="workflow-preview__label">You send</p><p className="mt-2 text-base font-bold text-[#20211e]">1,000 USDC</p></div>
-          <div><p className="workflow-preview__label">They receive</p><p className="mt-2 text-base font-bold text-[#087f5b]">128,395 KES</p></div>
-          <div><p className="workflow-preview__label">Test fee</p><p className="mt-2 text-sm font-semibold text-[#20211e]">8.00 USDC</p></div>
-          <div><p className="workflow-preview__label">Delivery</p><p className="mt-2 text-sm font-semibold text-[#20211e]">Bank account</p></div>
+        <p className="text-sm font-bold text-[#20211e]">Approve payout run?</p>
+        <div className="mt-3 grid grid-cols-2 gap-y-3 text-sm">
+          <span className="text-[#5d5d56]">Payouts</span><span className="text-right font-semibold text-[#20211e]">73</span>
+          <span className="text-[#5d5d56]">Total</span><span className="text-right font-semibold text-[#20211e]">KES 4,940,000</span>
+          <span className="text-[#5d5d56]">Methods</span><span className="text-right font-semibold text-[#20211e]">M-Pesa, bank</span>
         </div>
-        <div className="mt-5 flex items-center gap-2 border-t border-[#d9d6cd] pt-4 text-xs font-semibold text-[#087f5b]"><Clock3 size={14} /> Test quote ready to review</div>
+        <p className="mt-4 border-t border-[#d9d6cd] pt-3 text-xs leading-5 text-[#5d5d56]">Requires one approver: the total exceeds KES 1,000,000 and 1 recipient changed bank details.</p>
       </div>
     );
   }
-
-  if (kind === "treasury") {
+  if (kind === "exceptions") {
     return (
       <div className="workflow-preview">
-        <div className="grid grid-cols-3 divide-x divide-[#d9d6cd]">
-          <div className="pr-4"><p className="workflow-preview__label">Available</p><p className="mt-2 text-lg font-bold tracking-[-.04em] text-[#20211e]">42,800</p></div>
-          <div className="px-4"><p className="workflow-preview__label">Reserved</p><p className="mt-2 text-lg font-bold tracking-[-.04em] text-[#20211e]">12,400</p></div>
-          <div className="pl-4"><p className="workflow-preview__label">Pending</p><p className="mt-2 text-lg font-bold tracking-[-.04em] text-[#20211e]">4,180</p></div>
+        <div className="flex items-center justify-between border-b border-[#d9d6cd] pb-3">
+          <div><p className="text-sm font-bold text-[#20211e]">Peter Mwangi</p><p className="mt-1 font-mono text-[10px] uppercase tracking-[.08em] text-[#9a2f2f]">Failed</p></div>
+          <p className="font-mono text-sm font-semibold text-[#20211e]">KES 48,200</p>
         </div>
-        <div className="mt-6 border-t border-[#d9d6cd] pt-4">
-          <div className="flex items-center justify-between text-xs font-medium text-[#5d5d56]"><span className="flex items-center gap-2"><TrendingUp size={14} className="text-[#087f5b]" /> Balance ready to use</span><span className="font-mono text-[10px]">TRS-5829</span></div>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#e8eee4]"><div className="h-full w-[68%] rounded-full bg-[#11a879]" /></div>
-        </div>
+        <p className="pt-3 text-sm text-[#20211e]">Beneficiary account unavailable.</p>
+        <p className="mt-1 text-xs leading-5 text-[#5d5d56]">No money reached the recipient; the reserved funds were released.</p>
+        <div className="mt-3 flex gap-2 text-xs font-semibold"><span className="rounded-full border border-[#d9d6cd] px-2.5 py-1 text-[#20211e]">Change payout method</span><span className="rounded-full border border-[#d9d6cd] px-2.5 py-1 text-[#20211e]">Retry</span></div>
       </div>
     );
   }
-
   return (
     <div className="workflow-preview">
-      <div className="flex items-center justify-between border-b border-[#d9d6cd] pb-3">
-        <div><p className="text-sm font-bold text-[#20211e]">Website delivery</p><p className="mt-1 font-mono text-[10px] uppercase tracking-[.08em] text-[#5d5d56]">Milestone 02 of 04</p></div>
-        <LockKeyhole size={17} className="text-[#087f5b]" />
+      <div className="grid grid-cols-2 gap-y-2.5 text-sm">
+        {[["Requested", "73"], ["Delivered", "70"], ["Processing", "1"], ["Failed", "2"], ["Expected", "KES 4,940,000"], ["Delivered", "KES 4,812,600"], ["Outstanding", "KES 127,400"]].map(([label, value], index) => (
+          <div key={index} className="contents"><span className="text-[#5d5d56]">{label}</span><span className={`text-right font-semibold ${label === "Outstanding" || label === "Failed" ? "text-[#9a2f2f]" : "text-[#20211e]"}`}>{value}</span></div>
+        ))}
       </div>
-      {[["Funds", "Held"], ["Evidence", "Attached"], ["Approval", "Waiting"], ["Release", "Locked"]].map(([label, value], index) => (
-        <div key={label} className="flex items-center gap-3 border-b border-[#e4e1d9] py-3 last:border-b-0">
-          <span className={`h-2.5 w-2.5 rounded-full ${index < 2 ? "bg-[#11a879]" : "border border-[#087f5b]"}`} />
-          <span className="flex-1 text-sm font-medium text-[#20211e]">{label}</span>
-          <span className="font-mono text-[10px] text-[#5d5d56]">{value}</span>
-        </div>
-      ))}
     </div>
   );
 }
 
 export function WorkflowSections() {
   return (
-    <section id="workflows" className="border-b border-[#d9d6cd] bg-[#f5f3ee] px-6 py-24 sm:py-32">
+    <section id="workflows" className="home-section border-b border-[#d9d6cd] bg-[#f5f3ee]">
       <div className="homepage-frame">
-        <div className="grid gap-8 lg:grid-cols-[.95fr_1.05fr] lg:items-end">
-          <div>
-            <p className="homepage-eyebrow">Choose a workflow</p>
-            <h2 className="homepage-title">The right operational flow for the payment <em>you need to make.</em></h2>
+        <header className="home-head">
+          <p className="homepage-eyebrow">How it works</p>
+          <div className="home-head__row">
+            <h2 className="homepage-title">From spreadsheet to reconciled run, <em>in one controlled workspace.</em></h2>
+            <p className="homepage-copy">Zapzive controls preparation, approval, state and reconciliation. Licensed providers execute the transfer. The examples below are illustrative sandbox data.</p>
           </div>
-          <p className="homepage-copy lg:justify-self-end">Start with a clear job. Each workflow gives you the relevant checks and a payment record without forcing you to assemble the process yourself.</p>
-        </div>
+        </header>
 
-        <div className="workflow-services-grid mt-14">
+        <div className="workflow-services-grid home-section__body">
           {workflows.map((workflow) => {
             const Icon = workflow.icon;
 
@@ -147,7 +115,7 @@ export function WorkflowSections() {
                 </div>
 
                 <div className="workflow-service-card__sample">
-                  <p className="workflow-service-card__sample-label">Example workspace data</p>
+                  <p className="workflow-service-card__sample-label">Illustrative example</p>
                   <Preview kind={workflow.kind} />
                 </div>
 

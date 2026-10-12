@@ -2,7 +2,7 @@
 
 Zapzive is a financial-operations workspace for modelling and operating global payment workflows. It brings payroll, remittance, treasury, escrow, compliance records, and wallet-approved crypto payments into one product experience with clear state, permissions, and audit history.
 
-The repository is designed for local development and test-mode evaluation. Sandbox balances and simulated settlement records are not live money movement. A separate connected-wallet rail supports user-signed EVM testnet transfers and has explicit production gates; it does not take custody of wallets or private keys.
+The repository is designed for local development and test-mode evaluation. Payroll, remittance, escrow, and compliance workflows remain evaluation records. Crypto balances and transfers are different: they are read from and signed against real EVM testnets through a connected wallet, with explicit production gates. Zapzive never takes custody of wallet keys.
 
 ## Product scope
 
@@ -10,7 +10,7 @@ Zapzive is organised around the operational work a finance team needs to complet
 
 - **Payroll:** manage workers, prepare batches, collect approvals, and execute test payouts with stateful records.
 - **Remittance:** maintain recipients, request server-calculated test quotes, choose a delivery method, and trace a payout through its lifecycle.
-- **Treasury:** inspect test assets, balances, transfers, swaps, and portfolio activity from a shared ledger.
+- **Treasury:** inspect verified wallet holdings from the active EVM network and keep operational records separate from on-chain state.
 - **Escrow:** create milestone contracts, collect bids, lock test funds, release milestones, and record disputes.
 - **Crypto payments:** select a supported network and asset, verify wallet ownership, review an exact transfer, sign it in the user's wallet, and reconcile the resulting transaction record.
 - **Compliance and operations:** review sandbox KYC/AML items, audit activity, operational analytics, agents, API keys, webhooks, and workspace settings.
@@ -23,13 +23,13 @@ Zapzive is organised around the operational work a finance team needs to complet
 - Public marketing pages, product explanations, pricing, use cases, legal pages, contact pages, and a responsive application shell.
 - Authenticated dashboard navigation with role-aware actions and session-preserving route transitions.
 - Guided workflows for workers, recipients, payment creation, approvals, quotes, escrow milestones, treasury movements, and operational records.
-- Test-mode balances that remain consistent across the relevant dashboard views after an action is recorded.
+- On-chain balances that remain consistent across Overview, Treasury, Crypto payments, and Settings by reading the same verified wallet and network state.
 - Currency and asset presentation using maintained token marks rather than generated icon art.
 - Accessible controls, loading states, empty states, validation feedback, copy actions, and contextual error messages.
 
-### Sandbox asset rail
+### Operational records and on-chain rail
 
-The default workspace seeds isolated test assets for product evaluation: USDC, USDT, ETH, MATIC, DAI, BTC, and SOL. These balances are simulated and are intentionally separate from any linked external wallet. This allows teams to test complete product flows without funding an address or initiating a blockchain transfer.
+New workspaces do not receive fabricated crypto balances. Workspace records are seeded only where they are needed to demonstrate non-custodial product workflows. Crypto holdings appear only after a user verifies an external wallet; the backend reads native and configured token balances from the selected EVM testnet or live network.
 
 ### Connected-wallet rail
 
@@ -42,7 +42,7 @@ The wallet rail is non-custodial. It works with compatible injected EVM wallets,
 - The backend validates the sender, chain, enabled token contract, calldata, amount, receipt, canonical block, nonce, and matching transfer event before settlement.
 - Standard externally owned accounts are supported. Smart-contract and delegated wallets require a separate signing adapter and are not currently supported.
 
-Sandbox mode provides the multi-asset test rail above. The externally signed EVM rail currently uses native assets where enabled and verified USDC on supported EVM networks; it should not be represented as a general multi-chain production custody service.
+Bitcoin and Solana are not exposed as EVM token options. They require separate adapters for address validation, message signing, fee estimation, transaction construction, and confirmation; the UI does not show them as if they were supported.
 
 ## Architecture
 
@@ -62,11 +62,11 @@ Sandbox mode provides the multi-asset test rail above. The externally signed EVM
         |                               |
         v                               v
   Prisma data layer                 Crypto rail service
-  SQLite for local sandbox          network and asset configuration
+  SQLite for local development     network and asset configuration
         |                               |
         v                               v
-  Workspace records, assets,        Public RPC providers and EVM receipts
-  balances, payroll, escrow,        (only for the connected-wallet rail)
+  Workspace records, payroll,       Public RPC providers and EVM receipts
+  escrow, remittances, users,       (for the connected-wallet rail)
   remittances, users and audits
 
   Browser wallet extension
@@ -79,8 +79,8 @@ Sandbox mode provides the multi-asset test rail above. The externally signed EVM
 | Area | Responsibility | Boundary |
 | --- | --- | --- |
 | Frontend | Product UI, guarded routes, form validation, wallet discovery, transfer review | Does not hold credentials, private keys, or authoritative ledger state. |
-| Backend API | Authentication, authorization, server validation, workflow state, audit events, reconciliation | Is authoritative for sandbox records and payment-intent state. |
-| Database | Workspace-scoped operational data, balances, transactions, audit records, crypto recovery state | Local SQLite is for development and must not be used as durable serverless production storage. |
+| Backend API | Authentication, authorization, server validation, workflow state, audit events, reconciliation | Is authoritative for operational records and payment-intent state; it does not invent wallet balances. |
+| Database | Workspace-scoped operational data, transactions, audit records, wallet links, and crypto recovery state | Local SQLite is for development and must not be used as durable serverless production storage. |
 | Browser wallet | Account connection, ownership signature, network confirmation, transaction broadcast | User-controlled; Zapzive cannot send from the wallet without user approval. |
 | RPC providers | Chain reads and independent receipt verification | Required only for the connected-wallet rail. |
 
@@ -133,6 +133,8 @@ FRONTEND_URL=http://localhost:5173
 ```
 
 `JWT_SECRET` must be a unique secret in every environment. Do not commit `.env` files, production secrets, RPC credentials, or scheduler credentials.
+
+The default testnet rail uses the configured USDC deployment and the network's native asset. Add a verified per-network `*_USDT_ADDRESS` or `*_DAI_ADDRESS` only when the contract is deployed on that exact network and its decimals have been independently checked. BTC and SOL cannot be enabled by adding an EVM contract address.
 
 ### 3. Initialise the local database
 
@@ -227,6 +229,8 @@ Production also requires custody and regulatory review, transaction monitoring, 
 ## Supported wallet networks
 
 The testnet wallet rail is configured for Ethereum Sepolia, Arbitrum Sepolia, Optimism Sepolia, Base Sepolia, and Polygon Amoy. Mainnet configuration for Ethereum, Arbitrum, Optimism, Base, and Polygon is compiled into the backend but remains disabled until the safeguards above are satisfied.
+
+For hands-on testing without faucets, a private local devnet with test USDC, USDT and DAI can be enabled for local development; see [`backend/README.md`](backend/README.md#local-devnet-for-hands-on-testing).
 
 Public testnet RPC defaults can be overridden in `backend/.env`. Production RPC URLs and secondary witness endpoints belong only in protected backend environment variables. Never expose them through `VITE_*` variables.
 

@@ -19,6 +19,11 @@ import complianceRoutes from './routes/compliance.routes';
 import agentsRoutes from './routes/agents.routes';
 import settingsRoutes from './routes/settings.routes';
 import cryptoRoutes, { cryptoCron } from './routes/crypto.routes';
+import payoutsRoutes from './routes/payouts.routes';
+import recipientsRoutes from './routes/recipients.routes';
+import teamRoutes from './routes/team.routes';
+import { processSandboxSettlements } from './payouts/movements';
+import { reconcileDuePayments } from './crypto/worker';
 
 const app: Express = express();
 const PORT = process.env.PORT || 3001;
@@ -106,7 +111,10 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // API Routes
-app.use('/api/auth', rateLimit(30, 15 * 60_000), authRoutes);
+// The strict brute-force limit guards credential endpoints only; the session check runs on every
+// page load and stays under the general limit, otherwise normal browsing would be throttled.
+const credentialLimit = rateLimit(30, 15 * 60_000);
+app.use('/api/auth', (req: Request, res: Response, next: NextFunction) => (req.method === 'GET' ? next() : credentialLimit(req, res, next)), authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/remittance', remittanceRoutes);
 app.use('/api/payroll', payrollRoutes);
@@ -117,6 +125,9 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/compliance', complianceRoutes);
 app.use('/api/agents', agentsRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/payouts', payoutsRoutes);
+app.use('/api/recipients', recipientsRoutes);
+app.use('/api/team', teamRoutes);
 // The browser polls a pending payment every 15 seconds. This leaves ample room
 // for normal use while preventing a single client from turning the verifier into
 // an unbounded RPC proxy.
@@ -124,19 +135,41 @@ app.use('/api/crypto', rateLimit(120, 60_000), cryptoRoutes);
 app.get('/api/internal/crypto/reconcile', cryptoCron);
 
 // Error handling middleware
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
     void next;
     const requestIdentifier = res.locals.requestId;
+    const message = err instanceof Error ? err.message : 'Unknown request error';
     console.error('request_failed', {
         requestId: requestIdentifier,
         method: req.method,
         path: req.path,
-        error: err.message,
+        error: message,
     });
     if (err instanceof ApiError) {
         return res.status(err.status).json({
             error: err.message,
             code: err.code,
+            requestId: requestIdentifier,
+        });
+    }
+    if (message === 'Not allowed by CORS') {
+        return res.status(403).json({
+            error: 'This browser origin is not allowed to call the Zapzive API.',
+            code: 'CORS_ORIGIN_DENIED',
+            requestId: requestIdentifier,
+        });
+    }
+    if (err && typeof err === 'object' && 'type' in err && (err as { type?: unknown }).type === 'entity.too.large') {
+        return res.status(413).json({
+            error: 'The request body is too large.',
+            code: 'REQUEST_TOO_LARGE',
+            requestId: requestIdentifier,
+        });
+    }
+    if (err instanceof SyntaxError && 'body' in err) {
+        return res.status(400).json({
+            error: 'The request body contains invalid JSON.',
+            code: 'INVALID_JSON',
             requestId: requestIdentifier,
         });
     }
@@ -149,13 +182,45 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 // 404 handler
 app.use((req: Request, res: Response) => {
-    res.status(404).json({ error: 'Not Found', message: 'Route not found' });
+    res.status(404).json({ error: 'Route not found', code: 'ROUTE_NOT_FOUND', requestId: res.locals.requestId });
 });
+
+let reconciliationRunning = false;
+async function reconcileLocalPayments() {
+    if (reconciliationRunning) return;
+    reconciliationRunning = true;
+    try {
+        const result = await reconcileDuePayments(20);
+        if (result.checked || result.deferred) console.info('crypto_reconciliation', result);
+    } catch (error) {
+        console.error('crypto_reconciliation_failed', { error: error instanceof Error ? error.message : 'unknown_error' });
+    } finally {
+        reconciliationRunning = false;
+    }
+}
 
 // Start server
 if (process.env.VERCEL !== '1') app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV}`);
 });
+
+// A local or long-running backend can reconcile signed payments without a
+// browser staying open. Serverless deployments use the protected cron route.
+if (process.env.VERCEL !== '1' && process.env.CRYPTO_AUTOSTART_WORKER === 'true') {
+    const interval = Math.max(5_000, Number(process.env.CRYPTO_RECONCILIATION_INTERVAL_MS) || 15_000);
+    void reconcileLocalPayments();
+    const timer = setInterval(() => { void reconcileLocalPayments(); }, interval);
+    timer.unref();
+}
+
+// Sandbox payout provider: applies settlement outcomes on the server, never in
+// the browser. A reentrancy flag inside processSandboxSettlements prevents overlap.
+if (process.env.VERCEL !== '1') {
+    const payoutTimer = setInterval(() => {
+        processSandboxSettlements().catch((error) => console.error('sandbox_payout_settlement_failed', error));
+    }, 3_000);
+    payoutTimer.unref();
+}
 
 export default app;

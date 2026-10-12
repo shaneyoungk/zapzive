@@ -23,54 +23,57 @@ const controls = [
   },
 ];
 
+const sequence = ["Payment created", "Approval complete", "Release status updated"];
+
+// Column dividers for one, two and four columns, so every row shares the same lines.
+const columnClasses = [
+  "sm:pr-8",
+  "border-t sm:border-l sm:border-t-0 sm:pl-8 lg:pr-8",
+  "border-t sm:pr-8 lg:border-l lg:border-t-0 lg:pl-8",
+  "border-t sm:border-l sm:pl-8 lg:border-t-0",
+];
+
 export function SecuritySection() {
   return (
-    <section id="controls" className="border-b border-[#d9d6cd] bg-[#fffdf8] px-6 py-24 sm:py-32">
+    <section id="controls" className="home-section border-b border-[#d9d6cd] bg-[#fffdf8]">
       <div className="homepage-frame">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,.72fr)] lg:items-end lg:gap-20">
-          <div>
-            <p className="homepage-eyebrow">Payment controls</p>
-            <h2 className="homepage-title">
-              Decide who can prepare, approve,<br />
-              <em>and release a payment.</em>
-            </h2>
+        <header className="home-head">
+          <p className="homepage-eyebrow">Payment controls</p>
+          <div className="home-head__row">
+            <h2 className="homepage-title">Decide who can prepare, approve, <em>and release a payment.</em></h2>
+            <p className="homepage-copy">Assign roles, require approval, and keep a record of every important change. The same payment record shows what happened, who acted, and what can happen next.</p>
           </div>
-          <p className="homepage-copy mt-0">
-            Assign roles, require approval, and keep a record of every important change. The same payment record shows what happened, who acted, and what can happen next.
-          </p>
-        </div>
+        </header>
 
-        <div className="mt-14 grid border-y border-[#d9d6cd] md:grid-cols-2">
+        <div className="home-section__body grid border-y border-[#d9d6cd] sm:grid-cols-2 lg:grid-cols-4">
           {controls.map(({ icon: Icon, title, copy }, index) => (
-            <article
-              key={title}
-              className={`py-8 ${index < controls.length - 1 ? "border-b border-[#d9d6cd]" : ""} ${index < 2 ? "md:border-b" : "md:border-b-0"} ${index % 2 === 1 ? "md:border-l md:border-[#d9d6cd] md:pl-10" : "md:pr-10"}`}
-            >
+            <article key={title} className={`border-[#d9d6cd] py-8 ${columnClasses[index]}`}>
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e8f4ef] text-[#087f5b]">
                 <Icon size={19} strokeWidth={1.8} />
               </span>
-              <h3 className="mt-5 text-xl font-bold tracking-[-.045em] text-[#20211e]">{title}</h3>
-              <p className="mt-3 max-w-sm text-[15px] leading-7 text-[#5d5d56]">{copy}</p>
+              <h3 className="mt-5 text-lg font-bold tracking-[-.035em] text-[#20211e]">{title}</h3>
+              <p className="mt-2 text-[15px] leading-7 text-[#5d5d56]">{copy}</p>
             </article>
           ))}
         </div>
 
-        <div className="mt-10 grid gap-6 border-y border-[#d9d6cd] py-7 lg:grid-cols-[minmax(0,.72fr)_minmax(0,1.15fr)_180px] lg:items-center lg:gap-10">
-          <div>
+        <div className="grid border-b border-[#d9d6cd] lg:grid-cols-4">
+          <div className="py-8 lg:pr-8">
             <p className="homepage-eyebrow">Approval sequence</p>
-            <h3 className="mt-3 text-2xl font-bold tracking-[-.055em] text-[#20211e]">A release stays unavailable until its assigned review is complete.</h3>
+            <h3 className="mt-3 text-[22px] font-bold leading-[1.2] tracking-[-.045em] text-[#20211e]">A release stays unavailable until its assigned review is complete.</h3>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {["Payment created", "Approval complete", "Release status updated"].map((step, index) => (
-              <div key={step} className="flex items-center gap-2 text-sm font-semibold text-[#34352f]">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#e8f4ef] font-mono text-[10px] text-[#087f5b]">0{index + 1}</span>
-                {step}
+          {sequence.map((step, index) => (
+            <div key={step} className="border-t border-[#d9d6cd] py-8 lg:border-l lg:border-t-0 lg:pl-8">
+              <div className="flex items-center gap-3">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f4ef] font-mono text-[10px] font-semibold text-[#087f5b]">0{index + 1}</span>
+                {index < sequence.length - 1 && <span className="hidden h-px flex-1 bg-[#cfe3d9] lg:block" aria-hidden="true" />}
               </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 text-sm font-semibold text-[#087f5b] lg:justify-end">
-            <Check size={16} /> Record attached
-          </div>
+              <p className="mt-4 text-[15px] font-semibold text-[#20211e]">{step}</p>
+              {index === sequence.length - 1 && (
+                <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-[#087f5b]"><Check size={16} /> Record attached</p>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </section>

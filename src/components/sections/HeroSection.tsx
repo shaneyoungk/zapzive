@@ -2,11 +2,12 @@ import { ArrowRight, ArrowUpRight, CheckCircle2, ShieldCheck, WalletCards } from
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { BackgroundPaths } from "@/components/ui/background-paths";
+import { TOKEN_ICONS } from "@/lib/brand-assets";
 
 const heroAssurances = [
-  { icon: WalletCards, title: "Start with test balances", detail: "Learn the full payment flow before using a connected rail." },
-  { icon: ShieldCheck, title: "Set the right approval", detail: "Route each payment to the people who need to review it." },
-  { icon: CheckCircle2, title: "Keep the payment record", detail: "See the recipient, delivery state, and reference in one place." },
+  { icon: WalletCards, title: "Catch problems before payday", detail: "Duplicates, changed payout details and unsupported methods are flagged before anyone approves." },
+  { icon: ShieldCheck, title: "Approvals that match your risk", detail: "Amount tiers, new recipients and detail changes route to the right approver." },
+  { icon: CheckCircle2, title: "One reconciled record", detail: "Expected versus delivered, provider references and journal exports for every run." },
 ];
 
 export function HeroSection() {
@@ -22,7 +23,7 @@ export function HeroSection() {
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
             className="homepage-eyebrow hero-eyebrow"
           >
-            Stablecoin payments for global teams
+            Payout operations for African businesses
           </motion.p>
 
           <motion.h1
@@ -31,8 +32,8 @@ export function HeroSection() {
             transition={{ duration: 0.65, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
             className="homepage-title homepage-title--hero hero-title"
           >
-            Fund global payouts with stablecoins.<br />
-            <em>Keep approvals, delivery, and proof together.</em>
+            Prepare, approve, send, and reconcile payouts.<br />
+            <em>One payout run. Every approval. One record.</em>
           </motion.h1>
 
           <motion.p
@@ -41,7 +42,7 @@ export function HeroSection() {
             transition={{ duration: 0.55, delay: 0.14, ease: [0.16, 1, 0.3, 1] }}
             className="homepage-copy hero-copy"
           >
-            Create a batch, assign reviewers, choose the delivery method, and check the complete payment record before sending. Start with test balances, then use a supported connected rail when your workspace is ready.
+            For finance teams paying 20 to 250 contractors, vendors and creators by M-Pesa, bank transfer, mobile money or USDC wallet. Zapzive is the control layer above your payment providers: import the run, fix problems before payday, route it through approval, and keep a record that reconciles. Start free in the sandbox; no live funds move.
           </motion.p>
 
           <motion.div
@@ -51,12 +52,24 @@ export function HeroSection() {
             className="hero-actions"
           >
             <Link to="/signup" className="hero-primary-action">
-              Create a workspace <ArrowUpRight size={17} />
+              Start in the sandbox <ArrowUpRight size={17} />
             </Link>
             <a href="#benefits" className="hero-secondary-action">
-              See the payment flow <ArrowRight size={16} />
+              See how a payout run works <ArrowRight size={16} />
             </a>
           </motion.div>
+
+          <motion.a
+            href="#stablecoins"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.26, ease: [0.16, 1, 0.3, 1] }}
+            className="group mt-5 inline-flex max-w-full items-center gap-2.5 rounded-full border border-[#d9d6cd] bg-[rgba(255,253,248,.78)] py-1.5 pl-1.5 pr-3.5 text-[13px] text-[#5d5d56] transition-colors hover:border-[#087f5b] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#087f5b]"
+          >
+            <img src={TOKEN_ICONS.USDC} alt="" className="h-6 w-6 shrink-0 rounded-full" />
+            <span><b className="font-bold text-[#20211e]">USDC wallets and stablecoin settlement</b>, simulated in the sandbox</span>
+            <ArrowRight size={14} className="shrink-0 text-[#087f5b] transition-transform group-hover:translate-x-0.5" />
+          </motion.a>
         </div>
 
         <motion.div

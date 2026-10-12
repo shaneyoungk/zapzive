@@ -3,9 +3,10 @@ import crypto from 'crypto';
 import prisma from '../lib/prisma';
 import { authMiddleware, requireRole, type AuthRequest } from '../middleware/auth.middleware';
 import { ApiError, executeIdempotent, parseBoundedLimit, requiredText, requireIdempotencyKey, sendApiError } from '../lib/security';
-import { RAIL_NETWORKS, describeNetwork } from '../crypto/config';
-import { createPayment, ensureSandboxWallet, ownedPayment, paymentView, preparePayment, reconcilePayment, submitPayment, verifyWallet, walletBalances, walletChallenge, type RailActor } from '../crypto/service';
+import { describeNetwork, inspectRails, railNetworks } from '../crypto/config';
+import { createPayment, ownedPayment, paymentView, preparePayment, reconcilePayment, submitPayment, verifyWallet, walletBalances, walletChallenge, type RailActor } from '../crypto/service';
 import { reconcileDuePayments } from '../crypto/worker';
+import { getOnchainPortfolio } from '../crypto/portfolio';
 
 const router = Router();
 router.use(authMiddleware);
@@ -24,13 +25,42 @@ const idOf = (req: AuthRequest) => requiredText(req.params.id, 'payment id', 100
 
 router.get('/networks', handle(async (req, res) => {
     const company = await prisma.company.findUniqueOrThrow({ where: { id: req.companyId } });
-    if (company.isTestMode) await ensureSandboxWallet(req.companyId!, req.user!.id);
-    res.json({ networks: RAIL_NETWORKS.filter(n => Boolean(n.chain.testnet) === company.isTestMode).map(describeNetwork), mode: company.isTestMode ? 'testnet' : 'live', signing: 'external-wallet' });
+    res.json({ networks: railNetworks().filter(n => Boolean(n.chain.testnet) === company.isTestMode).map(describeNetwork), mode: company.isTestMode ? 'testnet' : 'live', signing: 'external-wallet' });
+}));
+
+// This intentionally returns operational state, not endpoints or credentials.
+// It lets the dashboard clearly explain whether a rail is ready before a user
+// switches modes or opens a wallet signature request.
+router.get('/readiness', handle(async (req, res) => {
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: req.companyId } });
+    const requestedMode = req.query.mode;
+    if (requestedMode !== undefined && requestedMode !== 'testnet' && requestedMode !== 'live') {
+        throw new ApiError(422, 'INVALID_ENVIRONMENT', 'mode must be testnet or live.');
+    }
+    const testnet = requestedMode === undefined ? company.isTestMode : requestedMode === 'testnet';
+    const rails = await inspectRails(testnet);
+    const reconciliationScheduled = process.env.VERCEL === '1'
+        ? Boolean(process.env.CRYPTO_WORKER_SECRET || process.env.CRON_SECRET)
+        : process.env.CRYPTO_AUTOSTART_WORKER === 'true';
+    res.json({
+        mode: testnet ? 'testnet' : 'live',
+        ready: rails.every((rail) => rail.ready),
+        rails,
+        reconciliation: {
+            scheduled: reconciliationScheduled,
+            message: reconciliationScheduled
+                ? null
+                : 'Scheduled reconciliation is not configured. Signed payments can still be refreshed manually.',
+        },
+    });
 }));
 
 router.get('/wallets', handle(async (req, res) => {
-    await ensureSandboxWallet(req.companyId!, req.user!.id);
     res.json(await prisma.cryptoWallet.findMany({ where: { companyId: req.companyId }, select: { id: true, chainId: true, address: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: 100 }));
+}));
+
+router.get('/portfolio', handle(async (req, res) => {
+    res.json(await getOnchainPortfolio(req.companyId!));
 }));
 
 router.post('/wallets/challenge', sessionOnly, moneyPermission, handle(async (req, res) => {

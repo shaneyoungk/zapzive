@@ -3,36 +3,27 @@ import { cn } from "@/lib/utils";
 interface ZapziveLogoProps {
     className?: string;
     size?: "xs" | "sm" | "md" | "lg";
+    /** "dark" ink for light surfaces (default); "light" ink for dark surfaces. */
+    tone?: "dark" | "light";
+    /** Only the Z mark, for tight spaces such as a collapsed sidebar. */
+    markOnly?: boolean;
 }
 
-const dimensions = {
-    xs: { frame: "h-[22px] w-[76px]", asset: 94 },
-    sm: { frame: "h-[32px] w-[112px]", asset: 138 },
-    md: { frame: "h-[40px] w-[140px]", asset: 172 },
-    lg: { frame: "h-[54px] w-[188px]", asset: 232 },
-} as const;
+// The wordmark artwork is 1958 × 1056 (≈ 1.85 : 1); heights are set so it sits on the text baseline grid.
+const heights = { xs: "h-6", sm: "h-8", md: "h-10", lg: "h-12" } as const;
 
-/**
- * The supplied PNG is intentionally a square transparent canvas around a wide
- * wordmark. This component presents the full artwork at its natural ratio,
- * rather than stretching it or cropping it as if it were an icon.
- */
-export const ZapziveLogo = ({ className, size = "md" }: ZapziveLogoProps) => {
-    const preset = dimensions[size];
+export const ZapziveLogo = ({ className, size = "md", tone = "dark", markOnly = false }: ZapziveLogoProps) => {
+    const src = markOnly ? "/zapzive-mark.png" : tone === "light" ? "/zapzive-wordmark-light.png" : "/zapzive-wordmark.png";
 
     return (
         <span className={cn("inline-flex shrink-0 leading-none", className)} role="img" aria-label="Zapzive">
-            <span className={cn("relative block overflow-hidden", preset.frame)}>
-                <img
-                    src="/zapzive-logo.png"
-                    alt=""
-                    aria-hidden="true"
-                    width={preset.asset}
-                    height={preset.asset}
-                    draggable={false}
-                    className="absolute left-1/2 top-1/2 max-w-none -translate-x-1/2 -translate-y-1/2 select-none"
-                />
-            </span>
+            <img
+                src={src}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className={cn("w-auto select-none object-contain", heights[size], markOnly && "aspect-square")}
+            />
         </span>
     );
 };

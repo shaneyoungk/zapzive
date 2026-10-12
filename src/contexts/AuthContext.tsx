@@ -79,8 +79,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         setCompany(session.company as AuthCompany);
                         persistAuth({ user: session.user, company: session.company, token: storedToken });
                     })
-                    .catch(() => {
+                    .catch((error: unknown) => {
                         if (cancelled) return;
+                        // Only an explicitly rejected session signs the user out. A rate
+                        // limit, server error or network blip keeps the stored session;
+                        // the next authenticated request revalidates it.
+                        const status = (error as { response?: { status?: number } })?.response?.status;
+                        if (status !== 401 && status !== 403) return;
                         clearStoredAuth();
                         setToken(null);
                         setUser(null);

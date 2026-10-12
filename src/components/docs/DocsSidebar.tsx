@@ -38,6 +38,7 @@ const navigation: NavSection[] = [
     title: "Start here",
     items: [
       { title: "Overview", href: "/docs", icon: BookOpen },
+      { title: "Payout operations API", href: "/docs/payouts", icon: Send },
       { title: "Quickstart", href: "/docs/quickstart", icon: Rocket },
       { title: "Authentication", href: "/docs/authentication", icon: KeyRound },
       { title: "Webhooks", href: "/docs/webhooks", icon: Webhook },

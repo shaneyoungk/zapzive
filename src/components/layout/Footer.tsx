@@ -4,10 +4,10 @@ import { ZapziveLogo } from "@/components/ui/ZapziveLogo";
 
 const footerLinks = {
   Platform: [
-    { label: "Payroll", href: "/features#payroll" },
-    { label: "Remittance", href: "/features#remittance" },
-    { label: "Treasury", href: "/features#treasury" },
-    { label: "Escrow", href: "/features#escrow" },
+    { label: "Payout runs", href: "/features#runs" },
+    { label: "Recipients", href: "/features#recipients" },
+    { label: "Approvals", href: "/features#approvals" },
+    { label: "Reconciliation", href: "/features#reconciliation" },
     { label: "Controls", href: "/features#controls" },
   ],
   Developers: [
@@ -35,11 +35,11 @@ export function Footer() {
         <div className="grid gap-14 py-16 sm:py-20 lg:grid-cols-[minmax(255px,.82fr)_minmax(0,2fr)] lg:gap-24">
           <div className="max-w-[330px]">
             <Link to="/" aria-label="Zapzive home" className="inline-flex border-b border-[#7de0bf] pb-5">
-              <ZapziveLogo size="lg" />
+              <ZapziveLogo size="lg" tone="light" />
             </Link>
             <p className="mt-7 font-mono text-[10px] font-semibold uppercase tracking-[.13em] text-[#7de0bf]">Payment operations</p>
-            <h2 className="mt-4 text-3xl font-bold leading-[1.03] tracking-[-.06em] text-[#fffdf8] sm:text-4xl">Prepare, approve, and review payments from one workspace.</h2>
-            <p className="mt-5 text-sm leading-6 text-[#d5d4cb]">Payroll, payouts, escrow, treasury, and the information around every payment stay in one operational record.</p>
+            <h2 className="mt-4 text-[22px] font-bold leading-[1.2] tracking-[-.04em] text-[#fffdf8]">Prepare, approve, and review payments from one workspace.</h2>
+            <p className="mt-5 text-sm leading-6 text-[#d5d4cb]">Payout operations for African businesses: prepare, approve, send and reconcile payouts from one controlled workspace.</p>
           </div>
 
           <nav aria-label="Footer navigation" className="grid grid-cols-2 gap-x-9 gap-y-12 md:grid-cols-4">

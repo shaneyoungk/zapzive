@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import Index from "./pages/Index";
 import Blog from "./pages/Blog";
 import Features from "./pages/Features";
@@ -15,10 +15,24 @@ import Login from "./pages/Login";
 import Pricing from "./pages/Pricing";
 import Legal from "./pages/Legal";
 import DashboardLayout from "@/layouts/DashboardLayout";
-import Overview from "./pages/dashboard/Overview";
-import Payroll from "./pages/dashboard/Payroll";
+import Home from "./pages/dashboard/Home";
+import Payouts from "./pages/dashboard/Payouts";
+import PayoutRunNew from "./pages/dashboard/PayoutRunNew";
+import PayoutRunDetail from "./pages/dashboard/PayoutRunDetail";
+import MovementDetail from "./pages/dashboard/MovementDetail";
+import Recipients from "./pages/dashboard/Recipients";
+import RecipientDetail from "./pages/dashboard/RecipientDetail";
+import Approvals from "./pages/dashboard/Approvals";
+import Exceptions from "./pages/dashboard/Exceptions";
+import Reconciliation from "./pages/dashboard/Reconciliation";
+import Reports from "./pages/dashboard/Reports";
+import Activity from "./pages/dashboard/Activity";
+import Funding from "./pages/dashboard/Funding";
+import Integrations from "./pages/dashboard/Integrations";
+import Team from "./pages/dashboard/Team";
+import WorkspaceSettings from "./pages/dashboard/WorkspaceSettings";
+import Labs from "./pages/dashboard/Labs";
 import PayrollBatchDetail from "./pages/dashboard/PayrollBatchDetail";
-import WorkerDetail from "./pages/dashboard/WorkerDetail";
 import Escrow from "./pages/dashboard/Escrow";
 import ContractDetail from "./pages/dashboard/ContractDetail";
 import ContractBid from "./pages/public/ContractBid";
@@ -26,12 +40,11 @@ import Remittance from "./pages/dashboard/Remittance";
 import Treasury from "./pages/dashboard/Treasury";
 import TreasuryTransfer from "./pages/dashboard/TreasuryTransfer";
 import CryptoPayments from "./pages/dashboard/CryptoPayments";
-import Analytics from "./pages/dashboard/Analytics";
 import Compliance from "./pages/dashboard/Compliance";
 import Agents from "./pages/dashboard/Agents";
-import Settings from "./pages/dashboard/Settings";
 import DocsLayout from "@/layouts/DocsLayout";
 import Introduction from "@/pages/docs/Introduction";
+import PayoutsGuide from "@/pages/docs/PayoutsGuide";
 import Quickstart from "@/pages/docs/Quickstart";
 import ApiReference from "@/pages/docs/ApiReference";
 import Authentication from "@/pages/docs/Authentication";
@@ -73,7 +86,33 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { CookieBanner } from "@/components/layout/CookieBanner";
 
-const queryClient = new QueryClient();
+function DashboardNotFound() {
+  return (
+    <div className="premium-card flex flex-col items-center px-6 py-16 text-center">
+      <p className="text-sm font-semibold text-[#1b1c19]">This page does not exist</p>
+      <p className="mt-1.5 max-w-sm text-[13px] leading-6 text-[#74736b]">The link may be outdated or mistyped. Earlier modules now live under Labs.</p>
+      <div className="mt-4 flex gap-4 text-[13px] font-semibold"><a href="/dashboard" className="text-primary hover:underline">Go to Home</a><a href="/dashboard/labs" className="text-primary hover:underline">Open Labs</a></div>
+    </div>
+  );
+}
+
+function RecipientRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/dashboard/recipients/${id}`} replace />;
+}
+
+// Client errors (not found, forbidden, validation) will not change on retry; only retry network and server failures.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) => {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        if (status && status >= 400 && status < 500 && status !== 408 && status !== 429) return false;
+        return failureCount < 2;
+      },
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -108,10 +147,30 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Overview />} />
-              <Route path="payroll" element={<Payroll />} />
+              <Route index element={<Home />} />
+              {/* Core payout operations */}
+              <Route path="payouts" element={<Payouts />} />
+              <Route path="payouts/new" element={<PayoutRunNew />} />
+              <Route path="payouts/runs/:id" element={<PayoutRunDetail />} />
+              <Route path="payouts/movements/:id" element={<MovementDetail />} />
+              <Route path="recipients" element={<Recipients />} />
+              <Route path="recipients/:id" element={<RecipientDetail />} />
+              <Route path="approvals" element={<Approvals />} />
+              <Route path="activity" element={<Activity />} />
+              <Route path="exceptions" element={<Exceptions />} />
+              <Route path="reconciliation" element={<Reconciliation />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="funding" element={<Funding />} />
+              <Route path="integrations" element={<Integrations />} />
+              <Route path="team" element={<Team />} />
+              <Route path="settings" element={<WorkspaceSettings />} />
+              <Route path="labs" element={<Labs />} />
+              {/* Renamed areas keep their old links working */}
+              <Route path="payroll" element={<Navigate to="/dashboard/payouts" replace />} />
+              <Route path="payroll/workers/:id" element={<RecipientRedirect />} />
+              <Route path="analytics" element={<Navigate to="/dashboard/reports" replace />} />
+              {/* Labs: earlier modules, reachable but outside the main navigation */}
               <Route path="payroll/batches/:id" element={<PayrollBatchDetail />} />
-              <Route path="payroll/workers/:id" element={<WorkerDetail />} />
               <Route path="escrow" element={<Escrow />} />
               <Route path="escrow/new" element={<Escrow />} />
               <Route path="escrow/:id" element={<ContractDetail />} />
@@ -121,16 +180,16 @@ const App = () => (
               <Route path="treasury/swap" element={<Treasury />} />
               <Route path="treasury/transfer" element={<TreasuryTransfer />} />
               <Route path="crypto" element={<CryptoPayments />} />
-              <Route path="analytics" element={<Analytics />} />
               <Route path="compliance" element={<Compliance />} />
               <Route path="agents" element={<Agents />} />
-              <Route path="settings" element={<Settings />} />
+              <Route path="*" element={<DashboardNotFound />} />
             </Route>
 
 
             {/* Documentation Routes */}
             <Route path="/docs" element={<DocsLayout />}>
               <Route index element={<Introduction />} />
+              <Route path="payouts" element={<PayoutsGuide />} />
               <Route path="quickstart" element={<Quickstart />} />
               <Route path="authentication" element={<Authentication />} />
               <Route path="testing" element={<Testing />} />

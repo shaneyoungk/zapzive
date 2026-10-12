@@ -39,8 +39,10 @@ import {
     useCreateWebhook,
     useDeleteWebhook,
     useUpdateProfile,
+    useSetEnvironment,
     useUsageMetrics
 } from "@/hooks/use-settings";
+import { useCryptoReadiness } from "@/hooks/useCryptoRails";
 import StatusBadge from "@/components/dashboard/StatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -69,11 +71,15 @@ interface Metric {
     endpoint?: string;
 }
 
-type SettingsTab = "organization" | "api" | "webhooks" | "usage" | "users" | "notifications";
+export type SettingsTab = "organization" | "api" | "webhooks" | "usage" | "users" | "notifications";
 
-export default function Settings() {
+/**
+ * Legacy workspace settings. `section` renders a single section without the page
+ * header or tab bar so Integrations and Settings can embed it.
+ */
+export default function Settings({ section }: { section?: SettingsTab } = {}) {
     const { company, updateCompany } = useAuth();
-    const [activeTab, setActiveTab] = useState<SettingsTab>("organization");
+    const [activeTab, setActiveTab] = useState<SettingsTab>(section ?? "organization");
     const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
     const [newKeyName, setNewKeyName] = useState("");
     const [newKeyScopes, setNewKeyScopes] = useState<string[]>(["read", "write"]);
@@ -90,6 +96,11 @@ export default function Settings() {
     const createWebhookMutation = useCreateWebhook();
     const deleteWebhookMutation = useDeleteWebhook();
     const updateProfileMutation = useUpdateProfile();
+    const setEnvironmentMutation = useSetEnvironment();
+    const sandboxReadiness = useCryptoReadiness(company?.id || "", "testnet");
+    const liveReadiness = useCryptoReadiness(company?.id || "", "live");
+    // Switching to testnet is the safe direction, so one reachable rail is enough.
+    const sandboxReadyRails = sandboxReadiness.data?.rails.filter((rail) => rail.ready).length ?? 0;
 
     useEffect(() => {
         if (profile || company) {
@@ -141,22 +152,28 @@ export default function Settings() {
         });
     };
 
+    const handleEnvironmentChange = (mode: 'testnet' | 'live') => {
+        const readiness = mode === 'testnet' ? sandboxReadiness : liveReadiness;
+        if (!readiness.data?.ready) {
+            const unavailable = readiness.data?.rails.filter((rail) => !rail.ready).map((rail) => rail.name).join(', ');
+            toast.error(`${mode === 'live' ? 'Live' : 'Sandbox'} rails are not ready`, {
+                description: unavailable ? `${unavailable} need attention before this workspace can switch.` : 'Checking rail status again. Please try in a moment.',
+            });
+            void readiness.refetch();
+            return;
+        }
+        setEnvironmentMutation.mutate(mode, { onSuccess: (updatedCompany) => updateCompany(updatedCompany) });
+    };
+
     return (
-        <div className="p-4 lg:p-6 max-w-[1600px] mx-auto space-y-6 animate-fade-in">
+        <div className={section ? "space-y-6" : "p-4 lg:p-6 max-w-[1600px] mx-auto space-y-6 animate-fade-in"}>
+            {!section && <>
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
                 <div><p className="dashboard-eyebrow">Workspace configuration</p><h1 className="mt-2 text-3xl">Organization settings</h1><p className="mt-2 text-sm text-[#77766e]">Manage profile, access, integrations, usage, and alerts.</p></div>
-                {company?.isTestMode && (
-                    <Button
-                        variant="outline"
-                        onClick={() => {
-                            setActiveTab("api");
-                            toast.info("Live access requires production review. Your sandbox remains active.");
-                        }}
-                    >
-                        <Zap className="h-4 w-4" />
-                        Review live setup
-                    </Button>
-                )}
+                <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold ${company?.isTestMode ? "border-[#cdd8c8] bg-[#e8eee4] text-[#087f5b]" : "border-[#b9d9cc] bg-[#eef8f3] text-[#087f5b]"}`}>
+                    <span className="h-2 w-2 rounded-full bg-[#11a879]" />
+                    {company?.isTestMode ? "Testnet workspace" : "Live workspace"}
+                </span>
             </div>
 
             {/* Tabs */}
@@ -185,6 +202,8 @@ export default function Settings() {
                     );
                 })}
             </div>
+
+            </>}
 
             {/* Organization Tab */}
             {activeTab === "organization" && (
@@ -245,6 +264,41 @@ export default function Settings() {
                                 </Button>
                             </div>
                         </div>
+                    </div>
+
+                    <div className="premium-card p-6">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className="dashboard-eyebrow">Environment</p>
+                                <h3 className="mt-2 text-lg font-semibold text-[#20211e]">Sandbox or live</h3>
+                                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#77766e]">Sandbox runs every payout workflow with test funding. Live execution needs a licensed provider; until one is connected the switch stays on sandbox. The settlement-lab network check below is for technical teams.</p>
+                            </div>
+                            <Globe className="mt-1 h-5 w-5 shrink-0 text-[#087f5b]" />
+                        </div>
+                        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                            <button
+                                type="button"
+                                onClick={() => handleEnvironmentChange("testnet")}
+                                disabled={setEnvironmentMutation.isPending || Boolean(company?.isTestMode) || sandboxReadiness.isPending || sandboxReadyRails === 0}
+                                className={`rounded-xl border p-4 text-left transition-colors ${company?.isTestMode ? "border-[#87c9b0] bg-[#eef8f3]" : "border-[#e1dfd7] bg-[#fffdf8] hover:border-[#b9d9cc]"}`}
+                            >
+                                <div className="flex items-center justify-between"><span className="text-sm font-semibold text-[#20211e]">Sandbox</span>{company?.isTestMode && <Check className="h-4 w-4 text-[#087f5b]" />}</div>
+                                <p className="mt-2 text-xs leading-5 text-[#77766e]">Test funding and the simulated sandbox provider. No live funds move.</p>
+                                <p className={`mt-3 text-[11px] font-semibold ${sandboxReadyRails ? "text-[#087f5b]" : "text-[#a53232]"}`}>{sandboxReadiness.isPending ? "Checking rails…" : !sandboxReadiness.data ? "Rail check required" : sandboxReadyRails ? `${sandboxReadyRails}/${sandboxReadiness.data.rails.length} rails ready` : "No testnet rail reachable"}</p>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleEnvironmentChange("live")}
+                                disabled={setEnvironmentMutation.isPending || !company?.isTestMode || liveReadiness.isPending || !liveReadiness.data?.ready}
+                                className={`rounded-xl border p-4 text-left transition-colors ${!company?.isTestMode ? "border-[#87c9b0] bg-[#eef8f3]" : "border-[#e1dfd7] bg-[#fffdf8] hover:border-[#b9d9cc]"}`}
+                            >
+                                <div className="flex items-center justify-between"><span className="text-sm font-semibold text-[#20211e]">Live</span>{!company?.isTestMode && <Check className="h-4 w-4 text-[#087f5b]" />}</div>
+                                <p className="mt-2 text-xs leading-5 text-[#77766e]">Requires a connected licensed provider. Not available during the MVP.</p>
+                                <p className={`mt-3 text-[11px] font-semibold ${liveReadiness.data?.ready ? "text-[#087f5b]" : "text-[#a53232]"}`}>{liveReadiness.isPending ? "Checking rails…" : liveReadiness.data?.ready ? `${liveReadiness.data.rails.length}/${liveReadiness.data.rails.length} rails ready` : "Rail check required"}</p>
+                            </button>
+                        </div>
+                        {[sandboxReadiness, liveReadiness].map((readiness) => readiness.data && !readiness.data.ready ? <div key={readiness.data.mode} className="mt-3 rounded-lg border border-[#edc6c2] bg-[#fff4f2] px-3 py-2 text-xs leading-5 text-[#8a2924]" role="alert"><span className="font-semibold">{readiness.data.mode === "live" ? "Live" : "Sandbox"} rail issue:</span> {readiness.data.rails.filter((rail) => !rail.ready).map((rail) => `${rail.name}: ${rail.reason}`).join(" · ")}</div> : null)}
+                        {(sandboxReadiness.isError || liveReadiness.isError) && <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-[#edc6c2] bg-[#fff4f2] px-3 py-2 text-xs text-[#8a2924]" role="alert"><span>Rail status could not be loaded. Check the backend connection and retry.</span><button type="button" className="font-semibold underline" onClick={() => { void sandboxReadiness.refetch(); void liveReadiness.refetch(); }}>Retry</button></div>}
                     </div>
                 </div>
             )}

@@ -1,63 +1,45 @@
 import crypto from 'crypto';
 import { Prisma, type CryptoPayment } from '@prisma/client';
-import { erc20Abi, formatUnits, parseUnits, verifyMessage, zeroAddress, type Address, type Hex } from 'viem';
+import { erc20Abi, formatUnits, verifyMessage, zeroAddress, type Address, type Hex } from 'viem';
 import prisma from '../lib/prisma';
 import { ApiError, optionalText, requestHash } from '../lib/security';
-import { assertNetworkEnabled, assetFor, assetsFor, checkedClient, networkFor, SANDBOX_ASSETS, SANDBOX_CHAIN_ID } from './config';
-import { address, amountUnits, assertMatchingTransaction, hasExactTransfer, transactionHash, transferData } from './validation';
+import { assertNetworkEnabled, assetFor, assetsFor, checkedClient, networkFor, railNetworks } from './config';
+import { address, amountUnits, assertMatchingTransaction, hasExactTransfer, isDelegatedAccountCode, retryDelayMs, transactionHash, transferData } from './validation';
 
 export interface RailActor { companyId: string; userId: string; requestId?: string }
-
-function sandboxWalletAddress(companyId: string) {
-    return `0x${crypto.createHash('sha256').update(`zapzive:sandbox-wallet:${companyId}`).digest('hex').slice(0, 40)}`;
-}
-
-export async function ensureSandboxWallet(companyId: string, userId = 'sandbox') {
-    const company = await prisma.company.findFirst({ where: { id: companyId, status: 'active', isTestMode: true }, select: { id: true } });
-    if (!company) return null;
-    // Older sandbox workspaces may have been created before the multi-asset
-    // rail existed. Add only missing rows; never overwrite a user's balance.
-    await Promise.all(SANDBOX_ASSETS.map((asset) => prisma.asset.upsert({
-        where: { companyId_symbol: { companyId, symbol: asset.symbol } },
-        update: {},
-        create: {
-            companyId,
-            symbol: asset.symbol,
-            name: asset.symbol === 'USDC' ? 'USD Coin' : asset.symbol === 'USDT' ? 'Tether' : asset.symbol === 'ETH' ? 'Ethereum' : asset.symbol === 'MATIC' ? 'Polygon' : asset.symbol === 'DAI' ? 'Dai' : asset.symbol === 'BTC' ? 'Bitcoin' : 'Solana',
-            balance: asset.symbol === 'USDC' || asset.symbol === 'USDT' || asset.symbol === 'DAI' ? 100000 : asset.symbol === 'ETH' ? 25 : asset.symbol === 'MATIC' ? 5000 : asset.symbol === 'BTC' ? 1 : 100,
-            usdValue: asset.symbol === 'USDC' || asset.symbol === 'USDT' || asset.symbol === 'DAI' ? 100000 : asset.symbol === 'ETH' ? 62500 : asset.symbol === 'MATIC' ? 2500 : asset.symbol === 'BTC' ? 60000 : 15000,
-            change24h: 0,
-            chain: 'Zapzive Sandbox',
-            color: asset.symbol === 'USDC' ? '#2775CA' : asset.symbol === 'USDT' ? '#26A17B' : asset.symbol === 'ETH' ? '#627EEA' : asset.symbol === 'MATIC' ? '#8247E5' : asset.symbol === 'DAI' ? '#F5AC37' : asset.symbol === 'BTC' ? '#F7931A' : '#14F195',
-            icon: asset.symbol === 'USDC' ? '/icons/usdc.png' : asset.symbol === 'USDT' ? '/icons/tether.png' : asset.symbol === 'ETH' ? '/icons/ethereum.png' : asset.symbol === 'MATIC' ? '/icons/polygon.png' : asset.symbol === 'DAI' ? '/icons/dai.svg' : asset.symbol === 'BTC' ? '/icons/bitcoin.svg' : '/icons/solana.svg',
-        },
-    })));
-    const address = sandboxWalletAddress(companyId);
-    return prisma.cryptoWallet.upsert({
-        where: { chainId_address: { chainId: SANDBOX_CHAIN_ID, address } },
-        update: {},
-        create: { companyId, createdBy: userId, chainId: SANDBOX_CHAIN_ID, address },
-        select: { id: true, chainId: true, address: true, createdAt: true },
-    });
-}
 
 async function railForCompany(companyId: string, chainId: unknown) {
     const network = networkFor(chainId);
     assertNetworkEnabled(network);
     const company = await prisma.company.findFirst({ where: { id: companyId, status: 'active' } });
-    if (!company || company.isTestMode !== Boolean(network.chain.testnet) || (!company.isTestMode && !company.liveEnabledAt)) {
-        throw new ApiError(403, 'ENVIRONMENT_MISMATCH', 'Use the network enabled for this workspace.');
+    if (!company) throw new ApiError(403, 'ENVIRONMENT_MISMATCH', 'Use the network enabled for this workspace.');
+    if (!company.isTestMode && !company.liveEnabledAt) {
+        throw new ApiError(403, 'LIVE_MODE_NOT_ENABLED', 'Live networks have not been enabled for this workspace. Switch to Testnet in Settings, or enable live networks there.');
+    }
+    if (company.isTestMode !== Boolean(network.chain.testnet)) {
+        const mode = company.isTestMode ? 'testnet' : 'live';
+        throw new ApiError(403, 'ENVIRONMENT_MISMATCH', `${network.chain.name} is not available while this workspace is in ${mode} mode. Choose a ${mode} network.`);
     }
     return network;
 }
 
-function auditData(actor: RailActor, action: string, entityId: string) {
-    return { companyId: actor.companyId, actorId: actor.userId, requestId: actor.requestId, action, entityType: 'crypto_payment', entityId };
+function auditData(actor: RailActor, action: string, entityId: string, metadata?: Record<string, unknown>) {
+    return {
+        companyId: actor.companyId, actorId: actor.userId, requestId: actor.requestId, action, entityType: 'crypto_payment', entityId,
+        ...(metadata ? { metadata: JSON.stringify(metadata) } : {}),
+    };
+}
+
+function unsupportedAccount(code: string) {
+    return new ApiError(422, 'SMART_WALLET_UNSUPPORTED', isDelegatedAccountCode(code)
+        ? 'This account has been upgraded to a smart account (EIP-7702 delegation). This rail signs with standard accounts only: switch the account back to a standard account in your wallet settings, or use another account.'
+        : 'This rail currently supports externally owned wallets. Contract and delegated wallets require a separate signing adapter.');
 }
 
 export function paymentView(payment: CryptoPayment) {
-    const network = networkFor(payment.chainId);
-    const explorerBase = network.chain.blockExplorers?.default.url;
+    // Payments outlive network configuration; an unconfigured chain must not
+    // break the history view, it only loses its explorer link.
+    const explorerBase = railNetworks().find((item) => item.chain.id === payment.chainId)?.chain.blockExplorers?.default.url;
     return {
         id: payment.id, chainId: payment.chainId, tokenAddress: payment.tokenAddress, symbol: payment.symbol, decimals: payment.decimals,
         fromAddress: payment.fromAddress, toAddress: payment.toAddress, amount: formatUnits(BigInt(payment.amountUnits), payment.decimals),
@@ -76,11 +58,10 @@ export async function ownedPayment(companyId: string, id: string) {
 
 export async function walletChallenge(actor: RailActor, input: { chainId?: unknown; address?: unknown }) {
     const network = await railForCompany(actor.companyId, input.chainId);
-    if (network.kind === 'sandbox') throw new ApiError(422, 'SANDBOX_NO_WALLET', 'Sandbox payments use the simulated account and do not require wallet ownership signing.');
     const walletAddress = address(input.address);
     const recent = await prisma.cryptoWalletChallenge.count({ where: { companyId: actor.companyId, userId: actor.userId, createdAt: { gte: new Date(Date.now() - 900_000) } } });
     if (recent >= 10) throw new ApiError(429, 'CHALLENGE_RATE_LIMIT', 'Too many wallet challenges. Try again later.');
-    const origin = new URL(process.env.FRONTEND_URL || 'http://localhost:8080');
+    const origin = new URL(process.env.FRONTEND_URL || 'http://localhost:5173');
     const expiresAt = new Date(Date.now() + 300_000);
     const message = [
         `${origin.host} requests proof of wallet ownership for Zapzive.`, walletAddress, '',
@@ -104,13 +85,18 @@ export async function verifyWallet(actor: RailActor, challengeId: string, signat
     if (!valid) throw new ApiError(422, 'INVALID_WALLET_PROOF', 'The signature does not match this wallet challenge.');
     const client = await checkedClient(network);
     const code = await client.getCode({ address: challenge.address as Address });
-    if (code && code !== '0x') throw new ApiError(422, 'SMART_WALLET_UNSUPPORTED', 'This rail currently supports externally owned wallets. Contract and delegated wallets require a separate signing adapter.');
+    if (code && code !== '0x') throw unsupportedAccount(code);
     return prisma.$transaction(async tx => {
         const consumed = await tx.cryptoWalletChallenge.updateMany({ where: { id: challenge.id, companyId: actor.companyId, usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
         if (consumed.count !== 1) throw new ApiError(409, 'PROOF_ALREADY_USED', 'This proof has already been used.');
-        const existing = await tx.cryptoWallet.findUnique({ where: { chainId_address: { chainId: challenge.chainId, address: challenge.address } } });
-        if (existing && existing.companyId !== actor.companyId) throw new ApiError(409, 'WALLET_UNAVAILABLE', 'This wallet cannot be linked to this workspace.');
-        const wallet = existing || await tx.cryptoWallet.create({ data: { companyId: actor.companyId, createdBy: actor.userId, chainId: challenge.chainId, address: challenge.address } });
+        // Ownership is proven per workspace by the signature itself, so the same
+        // wallet may be linked to every workspace its owner operates. Funds still
+        // move only when the wallet signs a specific transfer.
+        const wallet = await tx.cryptoWallet.upsert({
+            where: { companyId_chainId_address: { companyId: actor.companyId, chainId: challenge.chainId, address: challenge.address } },
+            update: {},
+            create: { companyId: actor.companyId, createdBy: actor.userId, chainId: challenge.chainId, address: challenge.address },
+        });
         await tx.auditEvent.create({ data: auditData(actor, 'crypto.wallet_linked', wallet.id) });
         return { id: wallet.id, chainId: wallet.chainId, address: wallet.address, createdAt: wallet.createdAt };
     });
@@ -120,6 +106,13 @@ export async function createPayment(actor: RailActor, key: string, input: { wall
     if (typeof input.walletId !== 'string') throw new ApiError(422, 'WALLET_REQUIRED', 'Select a verified wallet.');
     const to = address(input.to);
     const reference = optionalText(input.reference, 'reference', 120) || null;
+    const wallet = await prisma.cryptoWallet.findFirst({ where: { id: input.walletId, companyId: actor.companyId } });
+    if (!wallet) throw new ApiError(404, 'WALLET_NOT_FOUND', 'Verified wallet not found.');
+    const network = await railForCompany(actor.companyId, wallet.chainId);
+    const asset = assetFor(network, input.asset);
+    const units = amountUnits(input.amount, asset.decimals);
+    // The request fingerprint must exist before a retried key is compared with it.
+    const hash = requestHash({ walletId: input.walletId, to, asset: asset.symbol, tokenAddress: asset.tokenAddress, decimals: asset.decimals, units, reference });
     const findExisting = () => prisma.cryptoPayment.findUnique({ where: { companyId_idempotencyKey: { companyId: actor.companyId, idempotencyKey: key } } });
     const replay = (payment: CryptoPayment) => {
         if (payment.payloadHash !== hash) throw new ApiError(409, 'IDEMPOTENCY_KEY_REUSED', 'This key belongs to a different payment request.');
@@ -127,48 +120,7 @@ export async function createPayment(actor: RailActor, key: string, input: { wall
     };
     const existing = await findExisting();
     if (existing) return replay(existing);
-    const wallet = await prisma.cryptoWallet.findFirst({ where: { id: input.walletId, companyId: actor.companyId } });
-    if (!wallet) throw new ApiError(404, 'WALLET_NOT_FOUND', 'Verified wallet not found.');
-    const network = await railForCompany(actor.companyId, wallet.chainId);
-    const asset = assetFor(network, input.asset);
-    const units = amountUnits(input.amount, asset.decimals);
-    const hash = requestHash({ walletId: input.walletId, to, asset: asset.symbol, tokenAddress: asset.tokenAddress, decimals: asset.decimals, units, reference });
     if (to === wallet.address || (asset.kind === 'erc20' && to === asset.tokenAddress.toLowerCase())) throw new ApiError(422, 'INVALID_RECIPIENT', 'Use a recipient other than the sender or asset contract.');
-    if (network.kind === 'sandbox') {
-        const amount = Number(formatUnits(BigInt(units), asset.decimals));
-        const sandboxHash = `0x${crypto.createHash('sha256').update(`zapzive:sandbox-payment:${actor.companyId}:${key}`).digest('hex')}`;
-        const settled = await prisma.$transaction(async tx => {
-            const source = await tx.asset.findUnique({ where: { companyId_symbol: { companyId: actor.companyId, symbol: asset.symbol } } });
-            if (!source) throw new ApiError(422, 'SANDBOX_ASSET_UNAVAILABLE', `${asset.symbol} is not available in this sandbox workspace.`);
-            if (!Number.isFinite(amount) || source.balance < amount) throw new ApiError(409, 'INSUFFICIENT_BALANCE', `Sandbox balance: ${source.balance} ${asset.symbol} available; ${amount} ${asset.symbol} required.`);
-            const usdDelta = source.balance > 0 ? amount * (source.usdValue / source.balance) : 0;
-            const debit = await tx.asset.updateMany({
-                where: { companyId: actor.companyId, symbol: asset.symbol, balance: { gte: amount } },
-                data: { balance: { decrement: amount }, usdValue: { decrement: usdDelta } },
-            });
-            if (debit.count !== 1) throw new ApiError(409, 'INSUFFICIENT_BALANCE', `The sandbox ${asset.symbol} balance changed. Refresh balances and try again.`);
-            const payment = await tx.cryptoPayment.create({ data: {
-                companyId: actor.companyId, walletId: wallet.id, createdBy: actor.userId, chainId: wallet.chainId,
-                tokenAddress: zeroAddress, symbol: asset.symbol, decimals: asset.decimals,
-                fromAddress: wallet.address, toAddress: to, amountUnits: units, reference,
-                idempotencyKey: key, payloadHash: hash, createdBlock: '0', status: 'settled', txHash: sandboxHash,
-                confirmations: 1, expiresAt: new Date(Date.now() + 900_000), nextCheckAt: new Date(Date.now() + 3_600_000),
-            } });
-            await tx.transaction.create({ data: {
-                companyId: actor.companyId, type: 'crypto_payment', description: `Sandbox payment · ${asset.symbol} to ${to.slice(0, 10)}…`,
-                amount, currency: asset.symbol, isIncoming: false, status: 'settled', fees: 0,
-                chain: 'Zapzive Sandbox', txHash: sandboxHash,
-            } });
-            await tx.cryptoJournal.create({ data: { paymentId: payment.id, kind: 'settlement', entries: { create: [
-                { account: `wallet:${payment.chainId}:${payment.fromAddress}`, amountUnits: (-BigInt(units)).toString() },
-                { account: `recipient:${payment.chainId}:${payment.toAddress}`, amountUnits: units },
-            ] } } });
-            await tx.auditEvent.create({ data: auditData(actor, 'crypto.payment_created', payment.id) });
-            await tx.auditEvent.create({ data: auditData(actor, 'crypto.payment_settled', payment.id) });
-            return payment;
-        });
-        return settled;
-    }
     const client = await checkedClient(network);
     const block = await client.getBlockNumber({ cacheTime: 0 });
     try {
@@ -202,7 +154,7 @@ export async function preparePayment(actor: RailActor, id: string) {
     const token = payment.tokenAddress as Address;
     const native = payment.tokenAddress.toLowerCase() === zeroAddress;
     const code = await client.getCode({ address: account });
-    if (code && code !== '0x') throw new ApiError(422, 'SMART_WALLET_UNSUPPORTED', 'Delegated or contract wallets are not supported by this rail.');
+    if (code && code !== '0x') throw unsupportedAccount(code);
 
     if (native) {
         if (payment.decimals !== network.chain.nativeCurrency.decimals || payment.symbol.toUpperCase() !== network.chain.nativeCurrency.symbol.toUpperCase()) {
@@ -225,7 +177,7 @@ export async function preparePayment(actor: RailActor, id: string) {
         client.readContract({ address: token, abi: erc20Abi, functionName: 'decimals' }),
     ]);
     if (decimals !== payment.decimals) throw new ApiError(503, 'TOKEN_CONFIGURATION_MISMATCH', 'The token configuration could not be verified.');
-    if (payment.symbol !== 'USDC' || !assetsFor(network).some(asset => asset.kind === 'erc20' && asset.tokenAddress.toLowerCase() === token.toLowerCase() && asset.symbol === payment.symbol)) throw new ApiError(503, 'TOKEN_CONFIGURATION_MISMATCH', 'The selected token is not enabled on this network.');
+    if (!assetsFor(network).some(asset => asset.kind === 'erc20' && asset.tokenAddress.toLowerCase() === token.toLowerCase() && asset.symbol === payment.symbol)) throw new ApiError(503, 'TOKEN_CONFIGURATION_MISMATCH', 'The selected token is not enabled on this network.');
     if (balance < BigInt(payment.amountUnits)) throw new ApiError(409, 'INSUFFICIENT_BALANCE', `This wallet has ${formatUnits(balance, payment.decimals)} ${payment.symbol}; ${formatUnits(BigInt(payment.amountUnits), payment.decimals)} ${payment.symbol} is required.`);
     const args = [payment.toAddress as Address, BigInt(payment.amountUnits)] as const;
     const simulation = await client.simulateContract({ address: token, abi: erc20Abi, functionName: 'transfer', args, account });
@@ -242,18 +194,6 @@ export async function walletBalances(actor: RailActor, chainIdInput: unknown, wa
     const network = await railForCompany(actor.companyId, chainIdInput);
     const walletAddress = address(walletAddressInput);
     const asset = assetFor(network, symbolInput);
-    if (network.kind === 'sandbox') {
-        const source = await prisma.asset.findUnique({ where: { companyId_symbol: { companyId: actor.companyId, symbol: asset.symbol } } });
-        if (!source) throw new ApiError(404, 'SANDBOX_ASSET_UNAVAILABLE', `${asset.symbol} is not available in this sandbox workspace.`);
-        const amountText = source.balance.toFixed(asset.decimals);
-        const units = parseUnits(amountText, asset.decimals);
-        return {
-            chainId: network.chain.id, address: walletAddress, simulated: true,
-            asset: { symbol: asset.symbol, kind: asset.kind, decimals: asset.decimals, amount: amountText, amountUnits: units.toString() },
-            feeAsset: { symbol: network.chain.nativeCurrency.symbol, decimals: network.chain.nativeCurrency.decimals, amount: '0', amountUnits: '0' },
-            asOf: new Date().toISOString(),
-        };
-    }
     const client = await checkedClient(network);
     const nativeUnits = await client.getBalance({ address: walletAddress });
     let assetUnits = nativeUnits;
@@ -280,11 +220,6 @@ export async function submitPayment(actor: RailActor, id: string, hashInput: unk
     const payment = await ownedPayment(actor.companyId, id);
     if (payment.txHash === hash) return payment;
     if (['settled', 'failed', 'reorged'].includes(payment.status)) throw new ApiError(409, 'PAYMENT_FINAL', 'The payment is already final or requires investigation.');
-    // A hash received from a wallet is an important recovery artifact. Do not let
-    // a second, unverified hash replace it: users must inspect the wallet first.
-    if (payment.txHash && payment.nonce === null) {
-        throw new ApiError(409, 'PAYMENT_HASH_LOCKED', 'A transaction hash is already being located on the network. Do not submit another hash for this payment.');
-    }
     const network = await railForCompany(actor.companyId, payment.chainId);
     const client = await checkedClient(network);
     let transaction: Awaited<ReturnType<typeof client.getTransaction>> | null = null;
@@ -296,6 +231,13 @@ export async function submitPayment(actor: RailActor, id: string, hashInput: unk
         // user to sign or send again. Network outages are not treated as absence.
         if (!(error && typeof error === 'object' && 'name' in error && error.name === 'TransactionNotFoundError')) {
             throw new ApiError(503, 'RPC_UNAVAILABLE', 'The network could not be reached to record this transaction. Keep the hash and retry; do not send again.');
+        }
+        // A hash received from a wallet is an important recovery artifact. A
+        // second hash that the network cannot see never replaces it.
+        if (payment.txHash) {
+            throw new ApiError(409, 'PAYMENT_HASH_LOCKED', payment.nonce === null
+                ? 'A saved transaction hash is still being located on the network. Another hash can replace it only once the network shows a transaction that exactly matches this payment. Do not send again.'
+                : 'This payment already has a verified transaction. A replacement can be recorded only once it is visible on the network.');
         }
         try {
             return await prisma.$transaction(async tx => {
@@ -315,16 +257,20 @@ export async function submitPayment(actor: RailActor, id: string, hashInput: unk
         }
     }
     if (!transaction) throw new ApiError(503, 'RPC_UNAVAILABLE', 'The network could not return this transaction. Keep the hash and retry; do not send again.');
+    // A visible transaction must match the immutable intent exactly. Once it
+    // does, it may also correct a saved hash that never appeared on the network
+    // (a mistyped or dropped hash would otherwise strand the payment forever).
     assertMatchingTransaction(payment, transaction);
+    const action = !payment.txHash ? 'crypto.transaction_submitted' : payment.nonce === null ? 'crypto.transaction_hash_corrected' : 'crypto.transaction_replaced';
     try {
         return await prisma.$transaction(async tx => {
             const updated = await tx.cryptoPayment.updateMany({ where: { id, companyId: actor.companyId, version: payment.version }, data: {
-                txHash: hash, nonce: transaction.nonce, status: 'submitted', errorCode: null, nextCheckAt: new Date(),
+                txHash: hash, nonce: transaction.nonce, status: 'submitted', errorCode: null, nextCheckAt: new Date(), attempts: 0,
                 blockNumber: null, blockHash: null, confirmations: 0, version: { increment: 1 },
             } });
             if (updated.count !== 1) throw new ApiError(409, 'PAYMENT_CHANGED', 'This payment changed. Refresh it before continuing.');
             await tx.cryptoSubmission.create({ data: { paymentId: id, chainId: payment.chainId, txHash: hash, nonce: transaction.nonce } });
-            await tx.auditEvent.create({ data: auditData(actor, payment.txHash ? 'crypto.transaction_replaced' : 'crypto.transaction_submitted', id) });
+            await tx.auditEvent.create({ data: auditData(actor, action, id, payment.txHash ? { previousTxHash: payment.txHash } : undefined) });
             return tx.cryptoPayment.findUniqueOrThrow({ where: { id } });
         });
     } catch (error) {
@@ -338,11 +284,24 @@ export interface ChainObservation {
     confirmations: number; blockNumber: string | null; blockHash: string | null; errorCode: string | null;
 }
 
+// A settled payment whose transaction or receipt is no longer served is judged
+// by its recorded block: a different canonical block means the transaction was
+// reorganized out, the same block means the provider no longer indexes it.
+async function recheckSettledBlock(client: Awaited<ReturnType<typeof checkedClient>>, payment: CryptoPayment): Promise<ChainObservation> {
+    const recorded = { blockNumber: payment.blockNumber, blockHash: payment.blockHash };
+    const canonical = await client.getBlock({ blockNumber: BigInt(payment.blockNumber!) });
+    if (canonical.hash && canonical.hash !== payment.blockHash) {
+        return { status: 'reorged', confirmations: 0, ...recorded, errorCode: 'CHAIN_REORGANIZATION' };
+    }
+    return { status: 'settled', confirmations: payment.confirmations, ...recorded, errorCode: 'RECEIPT_UNAVAILABLE' };
+}
+
 export async function observePayment(payment: CryptoPayment): Promise<ChainObservation> {
     const network = networkFor(payment.chainId);
     const client = await checkedClient(network);
     const pending: ChainObservation = { status: 'submitted', confirmations: 0, blockNumber: null, blockHash: null, errorCode: null };
     if (!payment.txHash) return pending;
+    const settledRecord = payment.status === 'settled' && Boolean(payment.blockNumber);
     // Fetch and validate the transaction before looking for its receipt. This
     // safely turns a wallet-returned, not-yet-indexed hash into a durable pending
     // state, while rejecting any visible transaction that differs from the intent.
@@ -350,7 +309,7 @@ export async function observePayment(payment: CryptoPayment): Promise<ChainObser
         if (error?.name === 'TransactionNotFoundError') return null;
         throw error;
     });
-    if (!transaction) return { ...pending, errorCode: 'TX_NOT_VISIBLE' };
+    if (!transaction) return settledRecord ? recheckSettledBlock(client, payment) : { ...pending, errorCode: 'TX_NOT_VISIBLE' };
     assertMatchingTransaction(payment, transaction);
 
     // An RPC failure is not evidence of a failed or reorganized transaction.
@@ -358,16 +317,10 @@ export async function observePayment(payment: CryptoPayment): Promise<ChainObser
         if (error?.name === 'TransactionReceiptNotFoundError') return null;
         throw error;
     });
-    if (!receipt) {
-        if (payment.status === 'settled' && payment.blockNumber) {
-            const canonical = await client.getBlock({ blockNumber: BigInt(payment.blockNumber) });
-            if (canonical.hash && canonical.hash !== payment.blockHash) {
-                return { ...pending, status: 'reorged', errorCode: 'CHAIN_REORGANIZATION' };
-            }
-            return { ...pending, status: 'settled', errorCode: 'RECEIPT_UNAVAILABLE', blockNumber: payment.blockNumber, blockHash: payment.blockHash };
-        }
-        return pending;
-    }
+    if (!receipt) return settledRecord ? recheckSettledBlock(client, payment) : pending;
+    // The transaction can be mined between the two reads above. Compare block
+    // evidence only once both reads describe the same mined transaction.
+    if (transaction.blockHash === null) return pending;
     const [canonical, head, finalized] = await Promise.all([
         client.getBlock({ blockNumber: receipt.blockNumber }),
         client.getBlockNumber({ cacheTime: 0 }), client.getBlock({ blockTag: 'finalized' }),
@@ -375,7 +328,9 @@ export async function observePayment(payment: CryptoPayment): Promise<ChainObser
     if (receipt.transactionHash.toLowerCase() !== payment.txHash || canonical.hash !== receipt.blockHash ||
         transaction.blockHash !== receipt.blockHash || transaction.blockNumber !== receipt.blockNumber ||
         (payment.status === 'settled' && payment.blockHash !== receipt.blockHash)) {
-        return { ...pending, status: payment.status === 'settled' ? 'reorged' : 'submitted', errorCode: 'CHAIN_REORGANIZATION' };
+        return payment.status === 'settled'
+            ? { ...pending, status: 'reorged', blockNumber: payment.blockNumber, blockHash: payment.blockHash, errorCode: 'CHAIN_REORGANIZATION' }
+            : { ...pending, errorCode: 'CHAIN_REORGANIZATION' };
     }
     const confirmations = Math.max(0, Number(head - receipt.blockNumber + 1n));
     const observation = { ...pending, confirmations, blockNumber: receipt.blockNumber.toString(), blockHash: receipt.blockHash };
@@ -401,10 +356,13 @@ export async function applyObservation(payment: CryptoPayment, observation: Chai
     if (['failed', 'reorged'].includes(payment.status)) return payment;
     // Once recorded as final, a stale provider response cannot demote a payment.
     if (payment.status === 'settled' && !['settled', 'reorged'].includes(observation.status)) return payment;
+    // A hash the network still cannot see is re-checked with backoff rather than
+    // every 15 seconds indefinitely; any visible progress resets the schedule.
+    const unseen = observation.errorCode === 'TX_NOT_VISIBLE';
     return prisma.$transaction(async tx => {
         const updated = await tx.cryptoPayment.updateMany({ where: { id: payment.id, companyId: payment.companyId, version: payment.version, txHash: payment.txHash }, data: {
-            ...observation, version: { increment: 1 }, attempts: 0,
-            nextCheckAt: new Date(Date.now() + (observation.status === 'settled' ? 3_600_000 : 15_000)),
+            ...observation, version: { increment: 1 }, attempts: unseen ? { increment: 1 } : 0,
+            nextCheckAt: new Date(Date.now() + (observation.status === 'settled' ? 3_600_000 : unseen ? retryDelayMs(payment.attempts) : 15_000)),
             settledAt: observation.status === 'settled' && !payment.settledAt ? new Date() : payment.settledAt,
         } });
         if (updated.count !== 1) return tx.cryptoPayment.findUniqueOrThrow({ where: { id: payment.id } });
@@ -422,7 +380,6 @@ export async function applyObservation(payment: CryptoPayment, observation: Chai
 }
 
 export async function reconcilePayment(payment: CryptoPayment) {
-    if (networkFor(payment.chainId).kind === 'sandbox') return payment;
     if (!payment.txHash || ['failed', 'reorged'].includes(payment.status)) return payment;
     try { return await applyObservation(payment, await observePayment(payment)); }
     catch (error) {
@@ -447,7 +404,7 @@ export async function reconcilePayment(payment: CryptoPayment) {
         // for operators rather than relabelling every problem as an RPC failure.
         await prisma.cryptoPayment.updateMany({ where: { id: payment.id, version: payment.version }, data: {
             errorCode: apiError?.code || 'RPC_UNAVAILABLE', attempts: { increment: 1 }, version: { increment: 1 },
-            nextCheckAt: new Date(Date.now() + Math.min(300_000, 15_000 * 2 ** Math.min(payment.attempts, 5))),
+            nextCheckAt: new Date(Date.now() + retryDelayMs(payment.attempts)),
         } });
         if (error instanceof ApiError) throw error;
         throw new ApiError(503, 'RPC_UNAVAILABLE', 'Chain verification is temporarily unavailable. This payment remains recorded and will be checked again.');

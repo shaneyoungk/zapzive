@@ -3,6 +3,7 @@ import prisma from '../lib/prisma';
 import crypto from 'crypto';
 import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth.middleware';
 import { ApiError, requiredText, safeEmail, sendApiError } from '../lib/security';
+import { assertAnyRailReady, assertRailsReady } from '../crypto/config';
 
 const router = Router();
 
@@ -63,6 +64,47 @@ router.put('/profile', requireRole('owner', 'admin'), async (req: AuthRequest, r
         res.json(company);
     } catch (error) {
         return sendApiError(res, error, 'Failed to update profile');
+    }
+});
+
+// Switch the workspace between real testnets and the separately gated live
+// networks. This is deliberately unavailable to API-key authentication.
+router.post('/environment', requireRole('owner', 'admin'), async (req: AuthRequest, res: Response) => {
+    try {
+        if (req.authType !== 'session') throw new ApiError(403, 'SESSION_REQUIRED', 'Environment changes require an authenticated session.');
+        const mode = req.body?.mode;
+        if (mode !== 'testnet' && mode !== 'live') throw new ApiError(422, 'INVALID_ENVIRONMENT', 'mode must be testnet or live.');
+        if (mode === 'live') {
+            if (process.env.CRYPTO_ENABLE_MAINNET !== 'true' || process.env.CRYPTO_PERSISTENT_STORAGE !== 'true') {
+                throw new ApiError(403, 'LIVE_MODE_NOT_READY', 'Live networks require persistent storage and explicit operator enablement.');
+            }
+            if (process.env.NODE_ENV === 'production' && process.env.DATABASE_URL?.startsWith('file:')) {
+                throw new ApiError(403, 'DURABLE_STORAGE_REQUIRED', 'Live networks cannot use file-backed serverless storage.');
+            }
+        }
+        // Do an on-chain read before changing the workspace mode. Live mode needs
+        // every rail, so a partly configured environment is never presented as
+        // ready for signing. Testnet is the safe direction: one reachable rail is
+        // enough, and an unreachable network still fails per request.
+        if (mode === 'live') await assertRailsReady(false);
+        else await assertAnyRailReady(true);
+        const company = await prisma.company.update({
+            where: { id: req.companyId },
+            data: {
+                isTestMode: mode === 'testnet',
+                ...(mode === 'live' ? { liveEnabledAt: new Date() } : {}),
+            },
+        });
+        await prisma.auditEvent.create({
+            data: {
+                companyId: req.companyId!, actorId: req.user?.id,
+                action: mode === 'live' ? 'workspace.live_mode_enabled' : 'workspace.testnet_mode_enabled',
+                entityType: 'company', entityId: company.id, requestId: res.locals.requestId,
+            },
+        });
+        res.json(company);
+    } catch (error) {
+        return sendApiError(res, error, 'Failed to change workspace environment');
     }
 });
 
