@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import apiClient, { AUTH_STORAGE_KEY } from '@/lib/api-client';
+import apiClient, { AUTH_SESSION_INVALID_EVENT, AUTH_STORAGE_KEY } from '@/lib/api-client';
 
 export interface AuthUser {
     id: string;
@@ -69,9 +69,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(JSON.parse(storedUser) as AuthUser);
                 setCompany(JSON.parse(storedCompany) as AuthCompany);
 
-                // The HttpOnly cookie is the source of truth. Revalidate it on
-                // boot so revoked sessions and changed organization access do
-                // not render a stale dashboard.
+                // Revalidate the session on boot. The short-lived bearer token
+                // is used when the dashboard and API are on separate origins;
+                // the HttpOnly cookie remains a secure same-site fallback.
                 void apiClient.getSession()
                     .then((session) => {
                         if (cancelled) return;
@@ -126,6 +126,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             channel.close();
             authChannel.current = null;
         };
+    }, []);
+
+    useEffect(() => {
+        const handleInvalidSession = () => {
+            // React state, rather than an axios-level page reload, controls the
+            // protected-route transition. This avoids racing a just-completed
+            // sign-in while still removing a genuinely expired or revoked session.
+            clearStoredAuth();
+            setToken(null);
+            setUser(null);
+            setCompany(null);
+        };
+
+        window.addEventListener(AUTH_SESSION_INVALID_EVENT, handleInvalidSession);
+        return () => window.removeEventListener(AUTH_SESSION_INVALID_EVENT, handleInvalidSession);
     }, []);
 
     const login = (data: { user: AuthUser; company: AuthCompany; token?: string }) => {

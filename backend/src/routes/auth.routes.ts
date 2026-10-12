@@ -121,9 +121,15 @@ router.post('/signup', async (req: Request, res: Response) => {
             entityId: user.id,
             requestId: res.locals.requestId,
         });
+        // The dashboard can be hosted on a different Vercel origin from the API.
+        // Returning the same short-lived token lets the browser use its existing
+        // Authorization-header flow when third-party cookies are unavailable.
+        // This response must never be cached because it contains a credential.
+        res.setHeader('Cache-Control', 'no-store');
         res.status(201).json({
             success: true,
             message: 'Account created successfully',
+            token,
             user: {
                 id: user.id,
                 email: user.email,
@@ -173,9 +179,14 @@ router.post('/login', async (req: Request, res: Response) => {
         const token = issueToken(user);
         setSessionCookie(res, token);
         await audit(user.companyId, 'auth.login', 'user', { actorId: user.id, requestId: res.locals.requestId });
+        // Keep the HttpOnly cookie for same-site deployments, and provide the
+        // existing bearer-token path for the separately deployed dashboard.
+        // Prevent intermediaries from retaining a response with a credential.
+        res.setHeader('Cache-Control', 'no-store');
         res.json({
             success: true,
             message: 'Login successful',
+            token,
             user: {
                 id: user.id,
                 email: user.email,

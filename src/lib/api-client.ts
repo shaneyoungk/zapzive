@@ -10,6 +10,7 @@ const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1
 // session cookie only reaches an API addressed by the same name.
 const API_BASE_URL = isLocalBrowser ? `http://${window.location.hostname}:3001` : (configuredApiUrl || 'http://localhost:3001');
 export const AUTH_STORAGE_KEY = 'zapzive_auth_token';
+export const AUTH_SESSION_INVALID_EVENT = 'zapzive:session-invalid';
 
 export interface CryptoAsset {
     symbol: string;
@@ -214,12 +215,11 @@ class ApiClient {
             (error: AxiosError) => {
                 const errorCode = (error.response?.data as { code?: string } | undefined)?.code;
                 if (error.response?.status === 401 && errorCode === 'SESSION_INVALID') {
-                    // Only an explicitly invalid or expired session should sign the
-                    // user out. A failed page request must not erase their session.
-                    sessionStorage.removeItem(AUTH_STORAGE_KEY);
-                    sessionStorage.removeItem('user');
-                    sessionStorage.removeItem('company');
-                    window.location.href = '/login';
+                    // The auth provider owns cleanup and routing. A hard browser
+                    // reload here can race a successful login or discard useful
+                    // in-page error state. It also makes a single background
+                    // request look like a spontaneous logout.
+                    window.dispatchEvent(new Event(AUTH_SESSION_INVALID_EVENT));
                 }
                 return Promise.reject(error);
             }
